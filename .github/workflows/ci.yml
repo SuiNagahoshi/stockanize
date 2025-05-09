@@ -1,0 +1,21 @@
+# .github/workflows/ci.yml
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, pre-release, main]
+  push:
+    branches: [develop, pre-release, main]
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: denoland/setup-deno@v2
+      - name: fmt
+        run: deno fmt --check
+      - name: lint
+        run: deno lint
+      - name: test
+        run: deno test
