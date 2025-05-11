@@ -5,14 +5,21 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="4a9b8d8c-0c2a-409b-a1ee-22da8357bab5" name="変更" comment="feat: add parts register form">
-      <change afterPath="$PROJECT_DIR$/routes/api/parts_test.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.github/workflows/ci.yml" beforeDir="false" afterPath="$PROJECT_DIR$/.github/workflows/ci.yml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/e2e_test.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/deno.json" beforeDir="false" afterPath="$PROJECT_DIR$/deno.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/fresh.config.ts" beforeDir="false" afterPath="$PROJECT_DIR$/fresh.config.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/fresh.gen.ts" beforeDir="false" afterPath="$PROJECT_DIR$/fresh.gen.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/islands/PartForm.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/islands/PartForm.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main_test.ts" beforeDir="false" afterPath="$PROJECT_DIR$/main_test.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/routes/_app.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/routes/_app.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/routes/api/parts.ts" beforeDir="false" afterPath="$PROJECT_DIR$/routes/api/parts.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/routes/api/parts_test.ts" beforeDir="false" afterPath="$PROJECT_DIR$/routes/api/parts_test.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/routes/parts.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/routes/parts.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/static/styles.css" beforeDir="false" afterPath="$PROJECT_DIR$/static/styles.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tailwind.config.ts" beforeDir="false" afterPath="$PROJECT_DIR$/tailwind.config.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test_utils.ts" beforeDir="false" afterPath="$PROJECT_DIR$/test_utils.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/utils/supabase.ts" beforeDir="false" afterPath="$PROJECT_DIR$/utils/supabase.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -67,7 +74,7 @@
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager": "true",
     "RunOnceActivity.git.unshallow": "true",
     "deno.use.library": "true",
-    "git-widget-placeholder": "feature/parts-form",
+    "git-widget-placeholder": "develop",
     "last_opened_file_path": "F:/流星彗/software/stockanize",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
@@ -90,6 +97,9 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="JavaScript デバッグ.localhost:8000" />
+        <item itemvalue="JavaScript デバッグ.localhost:8000" />
+        <item itemvalue="JavaScript デバッグ.localhost:8000" />
         <item itemvalue="JavaScript デバッグ.localhost:8000" />
       </list>
     </recent_temporary>
@@ -161,7 +171,7 @@
                   <entry key="branch">
                     <value>
                       <list>
-                        <option value="main" />
+                        <option value="develop" />
                       </list>
                     </value>
                   </entry>
