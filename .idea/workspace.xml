@@ -4,22 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="4a9b8d8c-0c2a-409b-a1ee-22da8357bab5" name="変更" comment="feat: add parts register form">
-      <change beforePath="$PROJECT_DIR$/.github/workflows/ci.yml" beforeDir="false" afterPath="$PROJECT_DIR$/.github/workflows/ci.yml" afterDir="false" />
+    <list default="true" id="4a9b8d8c-0c2a-409b-a1ee-22da8357bab5" name="変更" comment="refactor: deno fmt">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/deno.json" beforeDir="false" afterPath="$PROJECT_DIR$/deno.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/fresh.config.ts" beforeDir="false" afterPath="$PROJECT_DIR$/fresh.config.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/fresh.gen.ts" beforeDir="false" afterPath="$PROJECT_DIR$/fresh.gen.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/islands/PartForm.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/islands/PartForm.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main_test.ts" beforeDir="false" afterPath="$PROJECT_DIR$/main_test.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/routes/_app.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/routes/_app.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/routes/api/parts.ts" beforeDir="false" afterPath="$PROJECT_DIR$/routes/api/parts.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/routes/api/parts_test.ts" beforeDir="false" afterPath="$PROJECT_DIR$/routes/api/parts_test.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/routes/parts.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/routes/parts.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/static/styles.css" beforeDir="false" afterPath="$PROJECT_DIR$/static/styles.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tailwind.config.ts" beforeDir="false" afterPath="$PROJECT_DIR$/tailwind.config.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test_utils.ts" beforeDir="false" afterPath="$PROJECT_DIR$/test_utils.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/utils/supabase.ts" beforeDir="false" afterPath="$PROJECT_DIR$/utils/supabase.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.ts" beforeDir="false" afterPath="$PROJECT_DIR$/main.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test_utils.ts" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -154,7 +142,15 @@
       <option name="project" value="LOCAL" />
       <updated>1746956101031</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="refactor: deno fmt">
+      <option name="closed" value="true" />
+      <created>1746971880269</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1746971880269</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -188,6 +184,7 @@
     <MESSAGE value="fix: ci" />
     <MESSAGE value="feat: add supabase api" />
     <MESSAGE value="feat: add parts register form" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: add parts register form" />
+    <MESSAGE value="refactor: deno fmt" />
+    <option name="LAST_COMMIT_MESSAGE" value="refactor: deno fmt" />
   </component>
 </project>

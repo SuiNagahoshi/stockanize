@@ -10,7 +10,9 @@ import { start } from "$fresh/server.ts";
 import manifest from "./fresh.gen.ts";
 import config from "./fresh.config.ts";
 
-await start(manifest, config);
+if (import.meta.main) {
+  await start(manifest, config);
+}
 
 //test
 export function add(a: number, b: number): number {
