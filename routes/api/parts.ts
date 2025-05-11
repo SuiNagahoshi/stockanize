@@ -7,7 +7,7 @@ import { supabase } from "../../utils/supabase.ts";
  * Handle POST request to register a new electronic part
  */
 export const handler: Handlers = {
-  async GET(_req, ctx) {
+  GET(_req, _ctx) {
     // デバッグ: とりあえず固定レスポンスを返す
     return new Response(JSON.stringify({ ok: true }), {
       headers: { "Content-Type": "application/json" },
