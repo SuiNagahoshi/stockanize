@@ -1,7 +1,5 @@
+@plugin "daisyui";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@plugin "daisyui" {
-  themes: autumn --default, pastel, haloween;
-}

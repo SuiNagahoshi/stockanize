@@ -7,14 +7,30 @@ import { supabase } from "../../utils/supabase.ts";
  * Handle POST request to register a new electronic part
  */
 export const handler: Handlers = {
+  async GET(_req, ctx) {
+    // デバッグ: とりあえず固定レスポンスを返す
+    return new Response(JSON.stringify({ ok: true }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  },
   async POST(req) {
     try {
       const contentType = req.headers.get("content-type") || "";
       if (contentType.includes("application/json")) {
         const body = await req.json();
 
-        const { name, category, price, currency, supplier, quantity, packageType, datasheetUrl, notes, imageUrl } =
-            body;
+        const {
+          name,
+          category,
+          price,
+          currency,
+          supplier,
+          quantity,
+          packageType,
+          datasheetUrl,
+          notes,
+          imageUrl,
+        } = body;
 
         const { data, error } = await supabase.from("parts").insert([
           {

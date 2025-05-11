@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: denoland/setup-deno@v2
         with:
-          deno-version: v1.x
+          deno-version: v2.x
       - name: fmt
         run: deno fmt --check
       - name: lint
@@ -34,7 +34,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: denoland/setup-deno@v2
         with:
-          deno-version: v1.x
+          deno-version: v2.x
       - name: unit test
         run: |
           deno test \
@@ -52,7 +52,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: denoland/setup-deno@v2
         with:
-          deno-version: v1.x
+          deno-version: v2.x
       - name: Install Puppeteer dependencies
         run: |
           DENO_INSTALL="$HOME/.deno/bin" deno run -A https://deno.land/x/puppeteer@16.2.0/install.ts

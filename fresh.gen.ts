@@ -8,7 +8,10 @@ import * as $api_joke from "./routes/api/joke.ts";
 import * as $api_parts from "./routes/api/parts.ts";
 import * as $greet_name_ from "./routes/greet/[name].tsx";
 import * as $index from "./routes/index.tsx";
+import * as $parts from "./routes/parts.tsx";
+import * as $test from "./routes/test.tsx";
 import * as $Counter from "./islands/Counter.tsx";
+import * as $PartForm from "./islands/PartForm.tsx";
 import type { Manifest } from "$fresh/server.ts";
 
 const manifest = {
@@ -19,9 +22,12 @@ const manifest = {
     "./routes/api/parts.ts": $api_parts,
     "./routes/greet/[name].tsx": $greet_name_,
     "./routes/index.tsx": $index,
+    "./routes/parts.tsx": $parts,
+    "./routes/test.tsx": $test,
   },
   islands: {
     "./islands/Counter.tsx": $Counter,
+    "./islands/PartForm.tsx": $PartForm,
   },
   baseUrl: import.meta.url,
 } satisfies Manifest;

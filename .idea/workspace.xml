@@ -4,17 +4,32 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="4a9b8d8c-0c2a-409b-a1ee-22da8357bab5" name="変更" comment="fix: ci">
+    <list default="true" id="4a9b8d8c-0c2a-409b-a1ee-22da8357bab5" name="変更" comment="feat: add supabase api">
+      <change afterPath="$PROJECT_DIR$/islands/PartForm.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/routes/parts.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.github/workflows/ci.yml" beforeDir="false" afterPath="$PROJECT_DIR$/.github/workflows/ci.yml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/deno.json" beforeDir="false" afterPath="$PROJECT_DIR$/deno.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/fresh.config.ts" beforeDir="false" afterPath="$PROJECT_DIR$/fresh.config.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/fresh.gen.ts" beforeDir="false" afterPath="$PROJECT_DIR$/fresh.gen.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/routes/_app.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/routes/_app.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/routes/api/parts.ts" beforeDir="false" afterPath="$PROJECT_DIR$/routes/api/parts.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test_utils.ts" beforeDir="false" afterPath="$PROJECT_DIR$/test_utils.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/static/styles.css" beforeDir="false" afterPath="$PROJECT_DIR$/static/styles.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tailwind.config.ts" beforeDir="false" afterPath="$PROJECT_DIR$/tailwind.config.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/utils/supabase.ts" beforeDir="false" afterPath="$PROJECT_DIR$/utils/supabase.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="tsconfig.json" />
+        <option value="TypeScript JSX File" />
+      </list>
+    </option>
   </component>
   <component name="Git.Settings">
     <option name="RECENT_BRANCH_BY_REPOSITORY">
@@ -36,6 +51,9 @@
     &quot;accountId&quot;: &quot;c92d75ca-5a67-4139-80ab-0de80dd1fc1c&quot;
   }
 }</component>
+  <component name="ProblemsViewState">
+    <option name="selectedTabId" value="CurrentFile" />
+  </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 0
 }</component>
@@ -65,6 +83,7 @@
 }]]></component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="F:\流星彗\software\stockanize\static" />
       <recent name="F:\流星彗\software\stockanize" />
     </key>
   </component>
@@ -94,7 +113,7 @@
       <updated>1746792596057</updated>
       <workItem from="1746792597446" duration="5590000" />
       <workItem from="1746846380625" duration="1687000" />
-      <workItem from="1746856898171" duration="8840000" />
+      <workItem from="1746856898171" duration="38728000" />
     </task>
     <task id="LOCAL-00001" summary="fix: from Ai Advice">
       <option name="closed" value="true" />
@@ -112,7 +131,15 @@
       <option name="project" value="LOCAL" />
       <updated>1746864752998</updated>
     </task>
-    <option name="localTasksCounter" value="3" />
+    <task id="LOCAL-00003" summary="feat: add supabase api">
+      <option name="closed" value="true" />
+      <created>1746875955851</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1746875955851</updated>
+    </task>
+    <option name="localTasksCounter" value="4" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -144,6 +171,7 @@
   <component name="VcsManagerConfiguration">
     <MESSAGE value="fix: from Ai Advice" />
     <MESSAGE value="fix: ci" />
-    <option name="LAST_COMMIT_MESSAGE" value="fix: ci" />
+    <MESSAGE value="feat: add supabase api" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: add supabase api" />
   </component>
 </project>
