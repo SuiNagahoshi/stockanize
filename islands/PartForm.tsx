@@ -146,25 +146,30 @@ export default function PartForm(props: PartFormProps) {
           {/* ── 価格・在庫情報 ── */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="form-control space-y-1">
-              <div className="flex items-center gap-2">
-                <label htmlFor="price" className="sr-only">単価</label>
-                <input
-                  type="number"
-                  id="price"
-                  name="price"
-                  className="w-32 px-3 py-2 border border-gray-300 rounded-md"
-                  placeholder="価格"
-                />
-                <label htmlFor="currency" className="sr-only">通貨</label>
-                <select
-                  id="currency"
-                  name="currency"
-                  className="px-3 py-2 border border-gray-300 rounded-md"
-                >
-                  <option value="JPY">¥ JPY</option>
-                  <option value="USD">$ USD</option>
-                  <option value="EUR">€ EUR</option>
-                </select>
+              <div className="flex flex-row gap-2">
+                <div className="basis-2/3">
+                  <label htmlFor="price" className="sr-only">単価</label>
+                  <input
+                    type="number"
+                    id="price"
+                    name="price"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    placeholder="価格"
+                  />
+                </div>
+                <div className="basis-1/3">
+                  <label htmlFor="currency" className="sr-only">通貨</label>
+                  <select
+                    id="currency"
+                    name="currency"
+                    className="px-3 py-2 border border-gray-300 rounded-md w-full"
+                  >
+                    <option value="JPY">¥ JPY</option>
+                    <option value="USD">$ USD</option>
+                    <option value="EUR">€ EUR</option>
+                  </select>
+                </div>
+                
               </div>
             </div>
             <div className="form-control space-y-1">
