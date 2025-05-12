@@ -169,7 +169,6 @@ export default function PartForm(props: PartFormProps) {
                     <option value="EUR">€ EUR</option>
                   </select>
                 </div>
-                
               </div>
             </div>
             <div className="form-control space-y-1">
