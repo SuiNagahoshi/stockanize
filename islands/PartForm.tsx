@@ -29,6 +29,9 @@ export default function PartForm(props: PartFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [imageFile, setImageFile] = useState<File | null>(null);
+
+
   /** formState を更新するユーティリティ */
   const update =
     (field: keyof typeof form) =>
@@ -256,18 +259,31 @@ export default function PartForm(props: PartFormProps) {
             />
           </div>
 
+          {/* ── 画像アップロード ── */}
           <div className="form-control space-y-1">
             <label className="label">
-              <span className="label-text font-semibold">画像URL</span>
+              <span className="label-text font-semibold">部品画像</span>
             </label>
             <input
-              type="url"
-              value={form.imageUrl}
-              onInput={update("imageUrl")}
-              className="input input-bordered w-full box-border"
-              placeholder="https://example.com/image.jpg"
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={(e) => {
+                const file = (e.currentTarget as HTMLInputElement).files?.[0];
+                if (file) {
+                  const url = URL.createObjectURL(file);
+                  setForm({ ...form, imageUrl: url });
+                  // 後述のアップロード処理用に file state も保持
+                  setImageFile(file);
+                }
+              }}
+              className="file-input file-input-bordered w-full"
             />
+            {form.imageUrl && (
+              <img src={form.imageUrl} alt="preview" className="mt-2 w-32 h-32 object-cover rounded" />
+            )}
           </div>
+
 
           {/* ── 送信ボタン ── */}
           <div className="text-center">
