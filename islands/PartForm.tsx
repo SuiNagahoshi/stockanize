@@ -2,6 +2,8 @@
 import { h } from "preact";
 import { useState } from "preact/hooks";
 
+import imageCompression from "https://esm.sh/browser-image-compression@2.0.2";
+
 /**
  * PartFormProps: フォームから渡すコールバック関数を定義
  */
@@ -29,8 +31,7 @@ export default function PartForm(props: PartFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [imageFile, setImageFile] = useState<File | null>(null);
-
+  const [_imageFile, setImageFile] = useState<File | null>(null);
 
   /** formState を更新するユーティリティ */
   const update =
@@ -268,22 +269,34 @@ export default function PartForm(props: PartFormProps) {
               type="file"
               accept="image/*"
               capture="environment"
-              onChange={(e) => {
+              onChange={async (e) => {
                 const file = (e.currentTarget as HTMLInputElement).files?.[0];
                 if (file) {
-                  const url = URL.createObjectURL(file);
+                  const file = e.currentTarget.files?.[0];
+                  if (!file) return;
+                  // ライブラリで圧縮＆リサイズ
+                  const compressedFile = await imageCompression(file, {
+                    maxSizeMB: 0.4,
+                    maxWidthOrHeight: 1000,
+                    useWebWorker: true,
+                    fileType: "image/webp",
+                  });
+                  setImageFile(compressedFile);
+                  // プレビュー用URL
+                  const url = URL.createObjectURL(compressedFile);
                   setForm({ ...form, imageUrl: url });
-                  // 後述のアップロード処理用に file state も保持
-                  setImageFile(file);
                 }
               }}
               className="file-input file-input-bordered w-full"
             />
             {form.imageUrl && (
-              <img src={form.imageUrl} alt="preview" className="mt-2 w-32 h-32 object-cover rounded" />
+              <img
+                src={form.imageUrl}
+                alt="preview"
+                className="mt-2 w-32 h-32 object-cover rounded"
+              />
             )}
           </div>
-
 
           {/* ── 送信ボタン ── */}
           <div className="text-center">
