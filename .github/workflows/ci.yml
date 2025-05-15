@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: denoland/setup-deno@v2
         with:
-          deno-version: v1.x
+          deno-version: v2.x
       - name: fmt
         run: deno fmt --check
       - name: lint
@@ -34,32 +34,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: denoland/setup-deno@v2
         with:
-          deno-version: v1.x
-      - name: unit test
+          deno-version: v2.x
+      - name: test
         run: |
-          deno test \
-            --allow-read \
-            --allow-env \
-            --allow-net \
-            --allow-run
-  e2e-test:
-    needs: unit-test
-    runs-on: ubuntu-latest
-    env:
-      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-    steps:
-      - uses: actions/checkout@v3
-      - uses: denoland/setup-deno@v2
-        with:
-          deno-version: v1.x
-      - name: Install Puppeteer dependencies
-        run: |
-          DENO_INSTALL="$HOME/.deno/bin" deno run -A https://deno.land/x/puppeteer@16.2.0/install.ts
-      - name: E2E test
-        run: |
-          deno test e2e_test.ts \
-            --allow-read \
-            --allow-env \
-            --allow-net \
-            --allow-run
+          deno test -A

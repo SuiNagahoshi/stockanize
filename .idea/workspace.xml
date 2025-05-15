@@ -4,15 +4,31 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="4a9b8d8c-0c2a-409b-a1ee-22da8357bab5" name="変更" comment="fix: from Ai Advice">
-      <change beforePath="$PROJECT_DIR$/.github/workflows/ci.yml" beforeDir="false" afterPath="$PROJECT_DIR$/.github/workflows/ci.yml" afterDir="false" />
+    <list default="true" id="4a9b8d8c-0c2a-409b-a1ee-22da8357bab5" name="変更" comment="refactor: deno fmt">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.ts" beforeDir="false" afterPath="$PROJECT_DIR$/main.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test_utils.ts" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="tsconfig.json" />
+        <option value="TypeScript JSX File" />
+        <option value="TypeScript File" />
+      </list>
+    </option>
+  </component>
   <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="pre-release" />
+      </map>
+    </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="GitHubPullRequestSearchHistory">{
@@ -27,6 +43,9 @@
     &quot;accountId&quot;: &quot;c92d75ca-5a67-4139-80ab-0de80dd1fc1c&quot;
   }
 }</component>
+  <component name="ProblemsViewState">
+    <option name="selectedTabId" value="CurrentFile" />
+  </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 0
 }</component>
@@ -43,7 +62,7 @@
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager": "true",
     "RunOnceActivity.git.unshallow": "true",
     "deno.use.library": "true",
-    "git-widget-placeholder": "pre-release",
+    "git-widget-placeholder": "develop",
     "last_opened_file_path": "F:/流星彗/software/stockanize",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
@@ -56,6 +75,7 @@
 }]]></component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="F:\流星彗\software\stockanize\static" />
       <recent name="F:\流星彗\software\stockanize" />
     </key>
   </component>
@@ -65,6 +85,9 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="JavaScript デバッグ.localhost:8000" />
+        <item itemvalue="JavaScript デバッグ.localhost:8000" />
+        <item itemvalue="JavaScript デバッグ.localhost:8000" />
         <item itemvalue="JavaScript デバッグ.localhost:8000" />
       </list>
     </recent_temporary>
@@ -85,7 +108,7 @@
       <updated>1746792596057</updated>
       <workItem from="1746792597446" duration="5590000" />
       <workItem from="1746846380625" duration="1687000" />
-      <workItem from="1746856898171" duration="6897000" />
+      <workItem from="1746856898171" duration="42702000" />
     </task>
     <task id="LOCAL-00001" summary="fix: from Ai Advice">
       <option name="closed" value="true" />
@@ -95,7 +118,39 @@
       <option name="project" value="LOCAL" />
       <updated>1746864516869</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="fix: ci">
+      <option name="closed" value="true" />
+      <created>1746864752998</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1746864752998</updated>
+    </task>
+    <task id="LOCAL-00003" summary="feat: add supabase api">
+      <option name="closed" value="true" />
+      <created>1746875955851</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1746875955851</updated>
+    </task>
+    <task id="LOCAL-00004" summary="feat: add parts register form">
+      <option name="closed" value="true" />
+      <created>1746956101031</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1746956101031</updated>
+    </task>
+    <task id="LOCAL-00005" summary="refactor: deno fmt">
+      <option name="closed" value="true" />
+      <created>1746971880269</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1746971880269</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -112,7 +167,7 @@
                   <entry key="branch">
                     <value>
                       <list>
-                        <option value="main" />
+                        <option value="develop" />
                       </list>
                     </value>
                   </entry>
@@ -126,6 +181,10 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="fix: from Ai Advice" />
-    <option name="LAST_COMMIT_MESSAGE" value="fix: from Ai Advice" />
+    <MESSAGE value="fix: ci" />
+    <MESSAGE value="feat: add supabase api" />
+    <MESSAGE value="feat: add parts register form" />
+    <MESSAGE value="refactor: deno fmt" />
+    <option name="LAST_COMMIT_MESSAGE" value="refactor: deno fmt" />
   </component>
 </project>

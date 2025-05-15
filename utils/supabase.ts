@@ -1,12 +1,20 @@
 // utils/supabase.ts
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
-/**
- * Supabase クライアントを生成して返します。
- * 環境変数から URL と anon key を取得します。
- */
+const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error("Missing SUPABASE_URL or SUPABASE_ANON_KEY");
+}
+
+// existing export
+export const supabase: SupabaseClient = createClient(
+  supabaseUrl,
+  supabaseAnonKey,
+);
+
+// new export
 export function getSupabaseClient(): SupabaseClient {
-  const url = Deno.env.get("SUPABASE_URL")!;
-  const key = Deno.env.get("SUPABASE_ANON_KEY")!;
-  return createClient(url, key);
+  return createClient(supabaseUrl, supabaseAnonKey);
 }
