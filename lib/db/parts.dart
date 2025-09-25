@@ -7,11 +7,12 @@ class Parts extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get category => text().nullable()();
   TextColumn get name => text()();
+  TextColumn get code => text().nullable()();
   IntColumn get stock => integer().withDefault(Constant(0))();
   TextColumn get location => text().nullable()();
   TextColumn get datasheetUrl => text().nullable()();
   TextColumn get buyUrl => text().nullable()();
-  TextColumn get metadata => text().map(const MetadataConverter())();
+  TextColumn get metadata => text().nullable().map(const MetadataConverter())();
 }
 
 class MetadataConverter extends TypeConverter<Map<String, dynamic>, String> {
@@ -21,7 +22,7 @@ class MetadataConverter extends TypeConverter<Map<String, dynamic>, String> {
   Map<String, dynamic> fromSql(String fromDb) {
     try {
       return fromDb.isNotEmpty
-          ? Map<String, dynamic>.from(jsonDecode(fromDb))
+          ? Map<String, dynamic>.from(jsonDecode(fromDb) as Map)
           : {};
     } catch (_) {
       return {};
@@ -39,10 +40,12 @@ extension PartDao on AppDatabase {
 
   Future<List<Part>> getAllParts() => select(parts).get();
 
+  Stream<List<Part>> watchAllParts() => select(parts).watch();
+
   Future<Part?> getPartById(int id) =>
       (select(parts)..where((tbl) => tbl.id.equals(id))).getSingleOrNull();
 
-  Future<bool> updatePart(Part part) => update(parts).replace(part);
+  Future<void> updatePart(Part part) => update(parts).replace(part);
 
   Future<int> deletePart(int id) =>
       (delete(parts)..where((tbl) => tbl.id.equals(id))).go();

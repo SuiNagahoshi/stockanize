@@ -1,17 +1,31 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:salomon_bottom_bar/salomon_bottom_bar.dart';
 import 'package:linkwell/linkwell.dart';
+import 'package:stockanize/add_page.dart';
 
 import 'package:stockanize/db/database.dart';
 import 'package:stockanize/db/parts.dart';
+import 'package:stockanize/parts_list_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  FlutterError.onError = (details) {
+    FlutterError.dumpErrorToConsole(details);
+  };
+
   final db = AppDatabase();
 
-  runApp(MyApp(db: db));
+  runZonedGuarded(() {
+    runApp(MyApp(db: db,));
+  }, (error, stack) {
+    debugPrint('Uncaught zone error: $error\n$stack');
+  });
 }
+
 
 class MyApp extends StatelessWidget {
   final AppDatabase db;
@@ -26,6 +40,10 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: StockanizeHomePage(db: db, title: 'Stockanize Home'),
+      routes: {
+        '/home': (context) => StockanizeHomePage(title: 'Stockanize Home', db: db),
+        '/add': (context) => AddPartPage(db: db)
+      },
     );
   }
 }
@@ -44,6 +62,7 @@ class _StockanizeHomePageState extends State<StockanizeHomePage> {
     const samplePart = PartsCompanion(
       category: Value("Resistor"),
       name: Value("1kΩ Resistor"),
+      code: Value("1111"),
       stock: Value(120),
       location: Value("Box A1"),
       datasheetUrl: Value("https://example.com/datasheet.pdf"),
@@ -70,51 +89,19 @@ class _StockanizeHomePageState extends State<StockanizeHomePage> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(widget.title),
       ),
-      body: FutureBuilder<List<Part>>(
-        future: widget.db.getAllParts(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData)
-            return const Center(child: CircularProgressIndicator());
-          final parts = snapshot.data!;
-          if (parts.isEmpty) return const Center(child: Text("no item"));
-
-          return ListView.builder(
-            itemCount: parts.length,
-            itemBuilder: (context, index) {
-              final part = parts[index];
-              return ListTile(
-                minTileHeight: 85,
-                title: Text(part.name),
-                leading: Hero(
-                  tag: "hero_list_item_$index",
-                  child: Container(
-                    width: 60,
-                    height: 85,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(10),
-                      color: Colors.blue.withAlpha(25),
-                    ),
-                    child: const Icon(Icons.electrical_services_outlined),
-                  ),
-                ),
-                trailing: IconButton(
-                  onPressed: () async {
-                    await widget.db.deletePart(part.id);
-                    setState(() {});
-                  },
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                ),
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => HeroListItemPage(part: part, index: index),
-                  ),
-                ),
-              );
-            },
-          );
-        },
-      ),
+      body: <Widget>[
+        SizedBox.expand(
+          child: PartsListPage(db: widget.db),
+        ),
+        SizedBox.expand(
+          child: AddPartPage(db: widget.db),
+        ),
+        SizedBox.expand(
+          child: Center(
+            child: Text("test2"),
+          ),
+        ),
+      ][_index],
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           _addItem();
@@ -155,7 +142,9 @@ final _navBarItems = [
 class HeroListItemPage extends StatelessWidget {
   final Part part;
   final int index;
-  const HeroListItemPage({super.key, required this.part, required this.index});
+
+  final dynamic heroTag;
+  const HeroListItemPage({super.key, required this.part, required this.index, required this.heroTag});
 
   @override
   Widget build(BuildContext context) {
@@ -169,7 +158,7 @@ class HeroListItemPage extends StatelessWidget {
           child: Column(
             children: [
               Hero(
-                tag: "hero_list_item_$index",
+                tag: heroTag,//"hero_list_item_$index",
                 child: Container(
                   width: double.infinity,
                   height: 250,
@@ -194,14 +183,15 @@ class HeroListItemPage extends StatelessWidget {
                   Text(part.category ?? ""),
                   Column(
                     children: [
+                      _buildInfoRow("型番", part.code),
                       _buildInfoRow("在庫数", part.stock),
                       _buildInfoRow("保管場所", part.location),
                       _buildLinkRow("データシート", part.datasheetUrl),
                       _buildLinkRow("購入先", part.buyUrl),
                       const Divider(),
-                      ...metadata.entries.map(
-                        (e) => _buildInfoRow(e.key, e.value),
-                      ),
+                      ...(metadata ?? {})
+                          .entries
+                          .map((e) => _buildInfoRow(e.key, e.value)),
                     ],
                   ),
                 ],
@@ -213,7 +203,7 @@ class HeroListItemPage extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoRow(String label, dynamic value, {double indent = 0}) {
+  /*Widget _buildInfoRow(String label, dynamic value, {double indent = 0}) {
     if (value is Map<String, dynamic>) {
       return Padding(
         padding: EdgeInsets.only(left: indent, top: 4, bottom: 4),
@@ -223,6 +213,51 @@ class HeroListItemPage extends StatelessWidget {
             Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
             ...value.entries
                 .map((e) => _buildInfoRow(e.key, e.value, indent: indent + 16)),
+          ],
+        ),
+      );
+    } else {
+      return Padding(
+        padding: EdgeInsets.only(left: indent, top: 4, bottom: 4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 100,
+              child: Text(label,
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
+            ),
+            Expanded(child: Text(value?.toString() ?? "")),
+          ],
+        ),
+      );
+    }
+  }*/
+  Widget _buildInfoRow(String label, dynamic value, {double indent = 0}) {
+    if (value is Map) {
+      // Map<String, dynamic> に限定せず
+      return Padding(
+        padding: EdgeInsets.only(left: indent, top: 4, bottom: 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+            ...value.entries.map((e) =>
+                _buildInfoRow(e.key.toString(), e.value, indent: indent + 16)),
+          ],
+        ),
+      );
+    } else if (value is List) {
+      return Padding(
+        padding: EdgeInsets.only(left: indent, top: 4, bottom: 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+            ...value.asMap().entries.map(
+                  (e) =>
+                      _buildInfoRow("[${e.key}]", e.value, indent: indent + 16),
+                ),
           ],
         ),
       );
@@ -265,3 +300,159 @@ class HeroListItemPage extends StatelessWidget {
     );
   }
 }
+/*
+class PartAdd extends StatefulWidget {
+  final AppDatabase database;
+
+  const PartAdd({super.key, required this.database});
+
+  @override
+  State<StatefulWidget> createState() => _PartAddState();
+}
+
+class _PartAddState extends State<PartAdd> {
+  final _formKey = GlobalKey<FormState>();
+
+  final _nameController = TextEditingController();
+  //final _categoryController = TextEditingController();
+  final _partCodeController = TextEditingController();
+  final _stockController = TextEditingController();
+  final _locationController = TextEditingController();
+  final _datasheetUrlController = TextEditingController();
+  final _buyUrlController = TextEditingController();
+
+  String? _selectedCategory;
+
+  final Map<String, TextEditingController> _metadataControllers = {};
+
+  final Map<String, dynamic> _metadataSchema = {
+    "Resistor": {
+      "resistance": null,
+      "tolerance": null,
+      "power": null,
+      "package": null,
+      "size": {
+        "depth": null,
+        "length": null,
+      },
+    },
+    "IC": {
+      "pins": null,
+      "package": null,
+      "voltage": null,
+      "size": {
+        "width": null,
+        "depth": null,
+        "height": null,
+      },
+    },
+  };
+
+  void _onCategoryChanged(String? value) {
+    setState(() {
+      _selectedCategory = value;
+      _metadataControllers.clear();
+      if (value != null && _metadataSchema.containsKey(value)) {
+        for (var key in _metadataSchema[value]!) {
+          _metadataControllers[key] = TextEditingController();
+        }
+      }
+    });
+  }
+
+  Future<void> _savePart() async {
+    if (_formKey.currentState?.validate() ?? false) {
+      final metadata = <String, dynamic>{};
+      _metadataControllers.forEach((key, controller) {
+        metadata[key] = controller.text;
+      });
+
+      final part = Part(
+          name: _nameController.text,
+          category: _selectedCategory ?? "Unknown",
+          code: _partCodeController.text,
+          stock: int.tryParse(_stockController.text) ?? 0,
+          location: _locationController.text,
+          datasheetUrl: _datasheetUrlController.text.isEmpty ? null : _datasheetUrlController.text,
+          buyUrl: _buyUrlController.text.isEmpty ? null : _buyUrlController.text,
+          metadata: metadata
+      );
+      
+      await widget.database.insertPart(part as PartsCompanion);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("部品を追加しました")),
+      );
+
+      _nameController.clear();
+      _partCodeController.clear();
+      _stockController.clear();
+      _locationController.clear();
+      _datasheetUrlController.clear();
+      _buyUrlController.clear();
+      _onCategoryChanged(null);
+    }
+  }
+
+  Widget _buildMetadataFields(Map<String, dynamic> schema, Map<String, dynamic> values, {double indent = 0}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: schema.entries.map((entry) {
+        final key = entry.key;
+        final value = entry.value;
+
+        if (value is Map<String, dynamic>) {
+          values[key] ??= {};
+          return Padding(
+            padding: EdgeInsets.only(left: indent),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(key, style: const TextStyle(fontWeight: FontWeight.bold)),
+                _buildMetadataFields(value, values[key], indent: indent + 16),
+              ],
+            ),
+          );
+        } else {
+          return Padding(
+            padding: EdgeInsets.only(left: indent, bottom: 8),
+            child: TextFormField(
+              decoration: InputDecoration(labelText: key),
+              onChanged: (val) => values[key] = val,
+            ),
+          );
+        }
+      }).toList(),
+    );
+  }
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("部品を追加")),
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            TextFormField(
+              decoration: const InputDecoration(labelText: "部品名"),
+              onSaved: (value) => _name = value ?? "",
+            ),
+            TextFormField(
+              decoration: const InputDecoration(labelText: "カテゴリ"),
+              onSaved: (value) => _category = value ?? "",
+            ),
+            const SizedBox(height: 16),
+            if (_category.isNotEmpty && _metadataSchema.containsKey(_category))
+              _buildMetadataFields(_metadataSchema[_category], ""),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _savePart,
+              child: const Text("保存"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}*/

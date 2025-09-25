@@ -19,6 +19,12 @@ LazyDatabase _openConnection() {
   return LazyDatabase(() async {
     final dir = await getApplicationDocumentsDirectory();
     final file = File(join(dir.path, 'parts.sqlite'));
+
+    // 開発中は強制削除して再作成してもOK
+    if (await file.exists()) {
+      await file.delete();
+    }
+
     return NativeDatabase(file);
   });
 }

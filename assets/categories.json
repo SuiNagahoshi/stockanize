@@ -1,0 +1,38 @@
+{
+  "Resistor": {
+    "type": "",
+    "resistance": "",
+    "tolerance": "",
+    "power": "",
+    "temperature_min": "",
+    "temperature_max": "",
+    "temperature_coefficient": "",
+    "implementation": "",
+    "package": "",
+    "size": {
+      "depth": "",
+      "length": ""
+    }
+  },
+  "Capacitor": {
+    "type": "",
+    "capacitance": "",
+    "tolerance": "",
+    "voltage_rating": "",
+    "esr": "",
+    "ripple_current": "",
+    "leakage_current": "",
+    "temperature_min": "",
+    "temperature_max": "",
+    "temperature_coefficient": "",
+    "lifetime": "",
+    "implementation": "",
+    "package": "",
+    "size": {
+      "diameter": "",
+      "height": "",
+      "length": "",
+      "width": ""
+    }
+  }
+}
