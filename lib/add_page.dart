@@ -351,7 +351,7 @@ class _AddPartPageState extends State<AddPartPage> {
                               child: Text(cat),
                             ))
                         .toList(),
-                    value: _selectedCategory,
+                    initialValue: _selectedCategory,
                     onChanged: _onCategorySelected,
                   ),
                   TextFormField(
