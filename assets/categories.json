@@ -1,38 +1,146 @@
 {
   "Resistor": {
-    "type": "",
-    "resistance": "",
-    "tolerance": "",
-    "power": "",
-    "temperature_min": "",
-    "temperature_max": "",
-    "temperature_coefficient": "",
-    "implementation": "",
-    "package": "",
+    "type": {"label":  "種類", "unit":  null},
+    "resistance": {"label":  "抵抗値", "unit":  "Ω"},
+    "tolerance": {"label":  "誤差", "unit":  "%"},
+    "power": {"label":  "定格電力", "unit":  "W"},
+    "temperature_min": {"label":  "最低温度", "unit":  "℃"},
+    "temperature_max": {"label":  "最高温度", "unit":  "℃"},
+    "temperature_coefficient": {"label":  "温度係数", "unit":  "ppm/℃"},
+    "implementation": {"label":  "実装形式", "unit":  null},
+    "package": {"label":  "パッケージ", "unit":  null},
     "size": {
-      "depth": "",
-      "length": ""
+      "depth": {"label":  "幅", "unit":  "mm"},
+      "length": {"label":  "長さ", "unit":  "mm"}
     }
   },
   "Capacitor": {
-    "type": "",
-    "capacitance": "",
-    "tolerance": "",
-    "voltage_rating": "",
-    "esr": "",
-    "ripple_current": "",
-    "leakage_current": "",
-    "temperature_min": "",
-    "temperature_max": "",
-    "temperature_coefficient": "",
-    "lifetime": "",
-    "implementation": "",
-    "package": "",
+    "type": {"label":  "種類", "unit":  null},
+    "capacitance": {"label":  "静電容量", "unit":  "F"},
+    "tolerance": {"label":  "誤差", "unit":  "%"},
+    "voltage_rating": {"label":  "定格電圧", "unit":  "V"},
+    "esr": {"label":  "ESR", "unit":  "Ω"},
+    "ripple_current": {"label":  "リプル電流", "unit":  "mA"},
+    "leakage_current": {"label":  "漏れ電流", "unit":  "mA"},
+    "temperature_min": {"label":  "最低温度", "unit":  "℃"},
+    "temperature_max": {"label":  "最高温度", "unit":  "℃"},
+    "temperature_coefficient": {"label":  "温度係数", "unit":  "ppm/℃"},
+    "lifetime": {"label":  "耐久性", "unit":  "hour"},
+    "implementation": {"label":  "実装形式", "unit":  null},
+    "package": {"label":  "パッケージ", "unit":  null},
     "size": {
-      "diameter": "",
-      "height": "",
-      "length": "",
-      "width": ""
+      "diameter": {"label":  "直径", "unit":  "mm"},
+      "height": {"label":  "高さ", "unit":  "mm"},
+      "length": {"label":  "長さ", "unit":  "mm"},
+      "width": {"label":  "幅", "unit":  "mm"}
+    }
+  },
+  "Inductor": {
+    "inductance": {"label": "インダクタンス", "unit": "H"},
+    "tolerance": {"label": "誤差", "unit": "%"},
+    "rated_current": {"label": "定格電流", "unit": "A"},
+    "saturation_current": {"label": "飽和電流", "unit": "A"},
+    "dc_resistance": {"label": "直流抵抗(DCR)", "unit": "Ω"},
+    "self_resonant_frequency": {"label": "自己共振周波数", "unit": "Hz"},
+    "temperature_min": {"label": "最低温度", "unit": "℃"},
+    "temperature_max": {"label": "最高温度", "unit": "℃"},
+    "implementation": {"label": "実装形式", "unit": null},
+    "package": {"label": "パッケージ", "unit": null},
+    "size": {
+      "length": {"label": "長さ", "unit": "mm"},
+      "width": {"label": "幅", "unit": "mm"},
+      "height": {"label": "高さ", "unit": "mm"}
+    }
+  },
+  "Diode": {
+    "type": {"label": "種類", "unit": null},
+    "forward_voltage": {"label": "順方向電圧", "unit": "V"},
+    "forward_current": {"label": "順方向電流", "unit": "A"},
+    "reverse_voltage": {"label": "逆方向電圧(耐圧)", "unit": "V"},
+    "reverse_current": {"label": "逆方向電流(リーク)", "unit": "µA"},
+    "reverse_recovery_time": {"label": "逆回復時間", "unit": "ns"},
+    "power": {"label": "定格損失電力", "unit": "W"},
+    "temperature_min": {"label": "最低温度", "unit": "℃"},
+    "temperature_max": {"label": "最高温度", "unit": "℃"},
+    "junction_capacitance": {"label": "接合容量", "unit": "pF"},
+    "implementation": {"label": "実装形式", "unit": null},
+    "package": {"label": "パッケージ", "unit": null},
+    "size": {
+      "length": {"label": "長さ", "unit": "mm"},
+      "width": {"label": "幅", "unit": "mm"},
+      "height": {"label": "高さ", "unit": "mm"}
+    }
+  },
+  "LED": {
+    "type": {"label": "種類", "unit": null},
+    "color": {"label": "発光色", "unit": null},
+    "wavelength": {"label": "発光波長 (λ)", "unit": "nm"},
+    "luminous_intensity": {"label": "光度", "unit": "mcd"},
+    "luminous_flux": {"label": "光束", "unit": "lm"},
+    "viewing_angle": {"label": "指向角", "unit": "°"},
+    "forward_voltage": {"label": "順方向電圧 (Vf)", "unit": "V"},
+    "forward_current": {"label": "順方向電流 (If)", "unit": "mA"},
+    "reverse_voltage": {"label": "逆方向電圧 (Vr)", "unit": "V"},
+    "reverse_current": {"label": "逆方向電流 (Ir)", "unit": "µA"},
+    "power_dissipation": {"label": "損失許容電力 (Pd)", "unit": "mW"},
+    "temperature_min": {"label": "最低動作温度", "unit": "℃"},
+    "temperature_max": {"label": "最高動作温度", "unit": "℃"},
+    "lifetime": {"label": "寿命", "unit": "hour"},
+    "implementation": {"label": "実装形式", "unit": null},
+    "package": {"label": "パッケージ", "unit": null},
+    "size": {
+      "diameter": {"label": "直径", "unit": "mm"},
+      "length": {"label": "長さ", "unit": "mm"},
+      "width": {"label": "幅", "unit": "mm"},
+      "height": {"label": "高さ", "unit": "mm"}
+    }
+  },
+
+  "MOSFET": {
+    "type": {"label": "種類", "unit": null},
+    "channel_type": {"label": "チャネルタイプ", "unit": null},
+    "drain_source_voltage": {"label": "ドレイン-ソース間電圧 (Vds)", "unit": "V"},
+    "drain_current": {"label": "ドレイン電流 (Id)", "unit": "A"},
+    "gate_threshold_voltage": {"label": "ゲートしきい値電圧 (Vgs(th))", "unit": "V"},
+    "gate_source_voltage": {"label": "ゲート-ソース間電圧 (Vgs)", "unit": "V"},
+    "on_resistance": {"label": "オン抵抗 (Rds(on))", "unit": "Ω"},
+    "total_gate_charge": {"label": "ゲート電荷 (Qg)", "unit": "nC"},
+    "input_capacitance": {"label": "入力容量 (Ciss)", "unit": "pF"},
+    "reverse_recovery_time": {"label": "逆回復時間 (trr)", "unit": "ns"},
+    "power_dissipation": {"label": "損失許容電力 (Pd)", "unit": "W"},
+    "junction_temperature_max": {"label": "接合温度 (Tj max)", "unit": "℃"},
+    "temperature_min": {"label": "最低動作温度", "unit": "℃"},
+    "temperature_max": {"label": "最高動作温度", "unit": "℃"},
+    "implementation": {"label": "実装形式", "unit": null},
+    "package": {"label": "パッケージ", "unit": null},
+    "size": {
+      "length": {"label": "長さ", "unit": "mm"},
+      "width": {"label": "幅", "unit": "mm"},
+      "height": {"label": "高さ", "unit": "mm"}
+    }
+  },
+  "Transistor": {
+    "type": {"label": "種類", "unit": null},
+    "polarity": {"label": "極性 (NPN/PNP)", "unit": null},
+    "collector_emitter_voltage": {"label": "コレクタ-エミッタ間電圧 (Vce)", "unit": "V"},
+    "collector_base_voltage": {"label": "コレクタ-ベース間電圧 (Vcb)", "unit": "V"},
+    "emitter_base_voltage": {"label": "エミッタ-ベース間電圧 (Veb)", "unit": "V"},
+    "collector_current": {"label": "コレクタ電流 (Ic)", "unit": "A"},
+    "power_dissipation": {"label": "損失許容電力 (Pc)", "unit": "W"},
+    "dc_current_gain": {"label": "直流電流増幅率 (hFE)", "unit": null},
+    "transition_frequency": {"label": "遷移周波数 (ft)", "unit": "MHz"},
+    "saturation_voltage": {"label": "飽和電圧 Vce(sat)", "unit": "V"},
+    "base_emitter_voltage": {"label": "ベース-エミッタ電圧 Vbe(on)", "unit": "V"},
+    "temperature_min": {"label": "最低動作温度", "unit": "℃"},
+    "temperature_max": {"label": "最高動作温度", "unit": "℃"},
+    "junction_temperature_max": {"label": "接合温度 (Tj max)", "unit": "℃"},
+    "implementation": {"label": "実装形式", "unit": null},
+    "package": {"label": "パッケージ", "unit": null},
+    "size": {
+      "length": {"label": "長さ", "unit": "mm"},
+      "width": {"label": "幅", "unit": "mm"},
+      "height": {"label": "高さ", "unit": "mm"}
     }
   }
+
 }

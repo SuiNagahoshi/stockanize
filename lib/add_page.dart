@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:stockanize/db/parts.dart';
@@ -30,6 +30,8 @@ class _AddPartPageState extends State<AddPartPage> {
   String? _selectedCategory;
   Map<String, TextEditingController> _paramControllers = {};
 
+  late Map<String, double> _maxUnitWidths = {};
+
   @override
   void initState() {
     super.initState();
@@ -59,20 +61,28 @@ class _AddPartPageState extends State<AddPartPage> {
   Future<void> _loadCategories() async {
     final jsonStr = await rootBundle.loadString('assets/categories.json');
     final dynamic decoded = jsonDecode(jsonStr);
-    // decoded が Map であることを確認してキャスト
     if (decoded is Map) {
+      final cats = Map<String, dynamic>.from(decoded);
+
+      // カテゴリごとに unit 幅を計算
+      final unitWidths = <String, double>{};
+      cats.forEach((category, schema) {
+        unitWidths[category] = _calcMaxUnitWidth(category, schema);
+      });
+
       setState(() {
-        _categories = Map<String, dynamic>.from(decoded);
+        _categories = cats;
+        _maxUnitWidths = unitWidths;
       });
     } else {
-      // 異常系: 空にしておく
       setState(() {
         _categories = {};
+        _maxUnitWidths = {};
       });
     }
   }
 
-  // カテゴリ選択時（既存コントローラは dispose してからクリア）
+  // --- カテゴリ変更時の処理: 既存コントローラは dispose してから新規作成 ---
   void _onCategorySelected(String? category) {
     if (category == null) return;
 
@@ -86,26 +96,130 @@ class _AddPartPageState extends State<AddPartPage> {
       _selectedCategory = category;
       final paramsDynamic = _categories[category];
       if (paramsDynamic is Map) {
-        // Map の型を Map<String,dynamic> に変換して渡す
         _createControllersForParams(Map<String, dynamic>.from(paramsDynamic));
       }
     });
   }
 
-  // 再帰的にコントローラを作る（Map<String,dynamic> を受け取る）
+  double _calcMaxUnitWidth(String category, Map<String, dynamic> schema) {
+    final units = <String>[];
+
+    void collectUnits(Map<String, dynamic> map) {
+      map.forEach((key, def) {
+        if (def is Map<String, dynamic>) {
+          if (def['unit'] != null) {
+            units.add(def['unit'].toString());
+          }
+          def.forEach((k, v) {
+            if (v is Map<String, dynamic>) {
+              collectUnits({k: v});
+            }
+          });
+        }
+      });
+    }
+
+    collectUnits(schema);
+
+    final textStyle = const TextStyle(color: Colors.grey);
+    final tp = TextPainter(
+        textDirection: TextDirection.ltr, textAlign: TextAlign.left);
+
+    double maxWidth = 0;
+    for (final u in units) {
+      tp.text = TextSpan(text: u, style: textStyle);
+      tp.layout();
+      if (tp.width > maxWidth) {
+        maxWidth = tp.width;
+      }
+    }
+    return maxWidth;
+  }
+
+  /// schema を再帰して "leaf" (label を持つフィールド) に対して
+  /// controller を作る。キーはドット区切り (例: "size.depth") で格納する。
   void _createControllersForParams(Map<String, dynamic> params,
       [String prefix = ""]) {
     params.forEach((key, value) {
-      final fieldKey = "$prefix$key";
+      final dottedKey = prefix.isEmpty ? key : "$prefix.$key";
+
       if (value is Map) {
-        // ネストする Map も同様にキャストして再帰呼び出し
-        _createControllersForParams(
-            Map<String, dynamic>.from(value), "$fieldKey.");
+        // leaf 判定: 'label' キーがあれば入力フィールドの対象
+        final mapValue = Map<String, dynamic>.from(value);
+        if (mapValue.containsKey('label')) {
+          // leaf: コントローラを用意
+          _paramControllers.putIfAbsent(
+              dottedKey, () => TextEditingController());
+        } else {
+          // container: ネストを再帰（子要素をそのまま渡す）
+          _createControllersForParams(mapValue, dottedKey);
+        }
       } else {
-        // 既にコントローラがあれば再利用、なければ作成
-        _paramControllers.putIfAbsent(fieldKey, () => TextEditingController());
+        // 予期しない型でもトリビアルに controller を作る（互換性維持）
+        _paramControllers.putIfAbsent(dottedKey, () => TextEditingController());
       }
     });
+  }
+
+  /// ドット区切りキーに対応して schema 定義を辿るヘルパ
+  Map<String, dynamic>? _resolveDefForDottedKey(
+      String category, String dottedKey) {
+    final catDefRaw = _categories[category];
+    if (catDefRaw is! Map) return null;
+
+    Map<String, dynamic>? node = Map<String, dynamic>.from(catDefRaw);
+    final parts = dottedKey.split('.');
+    for (final p in parts) {
+      final child = node?[p];
+      if (child == null) return null;
+      if (child is Map) {
+        node = Map<String, dynamic>.from(child);
+      } else {
+        return null;
+      }
+    }
+    return node;
+  }
+
+  /// フォーム行を描画（TextField の右に unit を固定表示）
+  /// keyName はドット区切りキー (例: "size.depth")
+  Widget _buildParamRow(String keyName, TextEditingController controller) {
+    final category = _selectedCategory ?? '';
+    final def = _resolveDefForDottedKey(category, keyName);
+
+    final label = (def != null && def['label'] != null)
+        ? def['label'].toString()
+        : keyName.split('.').last;
+    final unit =
+        (def != null && def['unit'] != null) ? def['unit'].toString() : null;
+
+    // カテゴリごとの最大 unit 幅を取得
+    final unitWidth = _maxUnitWidths[category] ?? 0;
+
+    return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 6),
+          Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+            Expanded(
+              child: TextFormField(
+                controller: controller,
+                decoration: const InputDecoration(
+                  isDense: true,
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            SizedBox(
+              width: unitWidth, // unit が null でも必ず幅を確保
+              child: (unit != null)
+                  ? Text(unit, style: const TextStyle(color: Colors.grey))
+                  : const SizedBox.shrink(),
+            )
+          ]),
+        ]));
   }
 
   Future<void> _savePart() async {
@@ -193,9 +307,20 @@ class _AddPartPageState extends State<AddPartPage> {
         const SnackBar(content: Text("部品を登録しました")),
       );
       debugPrint("snackbar");
-      //Navigator.of(context).pop(true); // 成功したら true を返す
-      // debugPrint("navigator complete");
-      //Navigator.pushReplacementNamed(context, '/home');
+
+      // 入力フォームをリセット（カテゴリも含めて）
+      setState(() {
+        _selectedCategory = null; // カテゴリもリセット
+        _nameController.clear();
+        _codeController.clear();
+        _stockController.clear();
+        _locationController.clear();
+        _datasheetUrlController.clear();
+        _buyUrlController.clear();
+        for (final controller in _paramControllers.values) {
+          controller.clear();
+        }
+      });
     } catch (e, st) {
       debugPrint('insertPart error: $e\n$st');
       if (mounted) {
@@ -205,7 +330,6 @@ class _AddPartPageState extends State<AddPartPage> {
         Navigator.of(context).pop(false); // 失敗したら false を返す
       }
     }
-
   }
 
   @override
@@ -262,10 +386,9 @@ class _AddPartPageState extends State<AddPartPage> {
                     Text("カテゴリパラメータ",
                         style: Theme.of(context).textTheme.titleMedium),
                     const SizedBox(height: 10),
-                    ..._paramControllers.entries.map((e) => TextFormField(
-                          controller: e.value,
-                          decoration: InputDecoration(labelText: e.key),
-                        )),
+                    ..._paramControllers.entries
+                        .map((e) => _buildParamRow(e.key, e.value))
+                        .toList(),
                   ],
                   const SizedBox(height: 20),
                   ElevatedButton.icon(

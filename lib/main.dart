@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:salomon_bottom_bar/salomon_bottom_bar.dart';
-import 'package:linkwell/linkwell.dart';
 import 'package:stockanize/add_page.dart';
 
 import 'package:stockanize/db/database.dart';
@@ -20,12 +19,13 @@ void main() async {
   final db = AppDatabase();
 
   runZonedGuarded(() {
-    runApp(MyApp(db: db,));
+    runApp(MyApp(
+      db: db,
+    ));
   }, (error, stack) {
     debugPrint('Uncaught zone error: $error\n$stack');
   });
 }
-
 
 class MyApp extends StatelessWidget {
   final AppDatabase db;
@@ -41,7 +41,8 @@ class MyApp extends StatelessWidget {
       ),
       home: StockanizeHomePage(db: db, title: 'Stockanize Home'),
       routes: {
-        '/home': (context) => StockanizeHomePage(title: 'Stockanize Home', db: db),
+        '/home': (context) =>
+            StockanizeHomePage(title: 'Stockanize Home', db: db),
         '/add': (context) => AddPartPage(db: db)
       },
     );
@@ -139,167 +140,6 @@ final _navBarItems = [
       selectedColor: Colors.orange),
 ];
 
-class HeroListItemPage extends StatelessWidget {
-  final Part part;
-  final int index;
-
-  final dynamic heroTag;
-  const HeroListItemPage({super.key, required this.part, required this.index, required this.heroTag});
-
-  @override
-  Widget build(BuildContext context) {
-    final metadata = part.metadata;
-
-    return Scaffold(
-      appBar: AppBar(title: Text(part.name)),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              Hero(
-                tag: heroTag,//"hero_list_item_$index",
-                child: Container(
-                  width: double.infinity,
-                  height: 250,
-                  decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(10),
-                      color: Colors.blue.withAlpha(25)),
-                  child: const Center(
-                    child: Icon(Icons.electrical_services_outlined,
-                        color: Colors.blue, size: 100),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Align(
-                    alignment: Alignment.center,
-                    child: Text(part.name,
-                        style: Theme.of(context).textTheme.headlineMedium),
-                  ),
-                  Text(part.category ?? ""),
-                  Column(
-                    children: [
-                      _buildInfoRow("型番", part.code),
-                      _buildInfoRow("在庫数", part.stock),
-                      _buildInfoRow("保管場所", part.location),
-                      _buildLinkRow("データシート", part.datasheetUrl),
-                      _buildLinkRow("購入先", part.buyUrl),
-                      const Divider(),
-                      ...(metadata ?? {})
-                          .entries
-                          .map((e) => _buildInfoRow(e.key, e.value)),
-                    ],
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /*Widget _buildInfoRow(String label, dynamic value, {double indent = 0}) {
-    if (value is Map<String, dynamic>) {
-      return Padding(
-        padding: EdgeInsets.only(left: indent, top: 4, bottom: 4),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-            ...value.entries
-                .map((e) => _buildInfoRow(e.key, e.value, indent: indent + 16)),
-          ],
-        ),
-      );
-    } else {
-      return Padding(
-        padding: EdgeInsets.only(left: indent, top: 4, bottom: 4),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 100,
-              child: Text(label,
-                  style: const TextStyle(fontWeight: FontWeight.bold)),
-            ),
-            Expanded(child: Text(value?.toString() ?? "")),
-          ],
-        ),
-      );
-    }
-  }*/
-  Widget _buildInfoRow(String label, dynamic value, {double indent = 0}) {
-    if (value is Map) {
-      // Map<String, dynamic> に限定せず
-      return Padding(
-        padding: EdgeInsets.only(left: indent, top: 4, bottom: 4),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-            ...value.entries.map((e) =>
-                _buildInfoRow(e.key.toString(), e.value, indent: indent + 16)),
-          ],
-        ),
-      );
-    } else if (value is List) {
-      return Padding(
-        padding: EdgeInsets.only(left: indent, top: 4, bottom: 4),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-            ...value.asMap().entries.map(
-                  (e) =>
-                      _buildInfoRow("[${e.key}]", e.value, indent: indent + 16),
-                ),
-          ],
-        ),
-      );
-    } else {
-      return Padding(
-        padding: EdgeInsets.only(left: indent, top: 4, bottom: 4),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 100,
-              child: Text(label,
-                  style: const TextStyle(fontWeight: FontWeight.bold)),
-            ),
-            Expanded(child: Text(value?.toString() ?? "")),
-          ],
-        ),
-      );
-    }
-  }
-
-  Widget _buildLinkRow(String label, String? url) {
-    if (url == null) return const SizedBox();
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-              width: 100,
-              child: Text(label,
-                  style: const TextStyle(fontWeight: FontWeight.bold))),
-          Expanded(
-              child: LinkWell(url,
-                  linkStyle: const TextStyle(
-                      color: Colors.lightBlue,
-                      decoration: TextDecoration.underline))),
-        ],
-      ),
-    );
-  }
-}
 /*
 class PartAdd extends StatefulWidget {
   final AppDatabase database;
