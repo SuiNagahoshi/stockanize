@@ -180,6 +180,9 @@ class _AddPartPageState extends State<AddPartPage> {
     }
     return node;
   }
+  // State クラスのフィールドに追加
+  final Map<String, String> _dropdownSelected = {}; // keyName -> 選択値 ('その他' も含む)
+
 
   /// フォーム行を描画（TextField の右に unit を固定表示）
   /// keyName はドット区切りキー (例: "size.depth")
@@ -190,37 +193,125 @@ class _AddPartPageState extends State<AddPartPage> {
     final label = (def != null && def['label'] != null)
         ? def['label'].toString()
         : keyName.split('.').last;
-    final unit =
-        (def != null && def['unit'] != null) ? def['unit'].toString() : null;
+    final unit = (def != null && def['unit'] != null) ? def['unit'].toString() : null;
 
-    // カテゴリごとの最大 unit 幅を取得
+    // JSON 側でどのプロパティ名を使っているかわからないので複数候補をチェックする
+    List<String>? options;
+    if (def is Map<String, dynamic>) {
+      if (def['option'] != null) options = List<String>.from(def['option']);
+      else if (def['options'] != null) options = List<String>.from(def['options']);
+      else if (def['types'] != null) options = List<String>.from(def['types']);
+    }
+
+    // --- package が implementation に依存する場合の処理 ---
+    // JSON 側に 'optionByImplementation' を置いている場合、implementation の選択値を見て置き換える
+    if (def is Map<String, dynamic> && def['optionByImplementation'] != null) {
+      // implementation の選択を参照（Stateの _dropdownSelected または controller の text を参照）
+      final impl = _dropdownSelected['implementation'] ??
+          (_paramControllers['implementation']?.text.isNotEmpty == true
+              ? _paramControllers['implementation']!.text
+              : null);
+
+      final map = Map<String, dynamic>.from(def['optionByImplementation']);
+      if (impl != null && map.containsKey(impl)) {
+        options = List<String>.from(map[impl]);
+      } else {
+        // 実装形式未選択なら options を空にして、Dropdown を出すなら 'その他' のみにする／
+        options = <String>[];
+      }
+    }
+
     final unitWidth = _maxUnitWidths[category] ?? 0;
 
+    // 現在の選択（State に保持しているもの優先、なければ controller.text を使う）
+    String? selectedValue = _dropdownSelected[keyName] ?? (controller.text.isNotEmpty ? controller.text : null);
+
     return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 6),
-          Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-            Expanded(
-              child: TextFormField(
-                controller: controller,
-                decoration: const InputDecoration(
-                  isDense: true,
-                  border: OutlineInputBorder(),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: (options != null && options.isNotEmpty)
+                // options があるならドロップダウン（"その他" を末尾に追加）
+                    ? StatefulBuilder(builder: (context, setLocalState) {
+                  return Column(
+                    children: [
+                      DropdownButtonFormField<String>(
+                        value: selectedValue,
+                        items: [
+                          ...options!.map((opt) => DropdownMenuItem(value: opt, child: Text(opt))),
+                          const DropdownMenuItem(value: "その他", child: Text("その他")),
+                        ],
+                        onChanged: (val) {
+                          // ローカルと上位 State の両方を更新する（永続化のため）
+                          setLocalState(() {
+                            selectedValue = val;
+                          });
+                          setState(() {
+                            _dropdownSelected[keyName] = val ?? '';
+                            if (val != "その他") {
+                              controller.text = val ?? '';
+                            } else {
+                              controller.text = ''; // その他は自由入力へ
+                            }
+
+                            // もし implementation を選択したなら package に影響するので package をクリア
+                            if (keyName == 'implementation') {
+                              _dropdownSelected.remove('package');
+                              _paramControllers['package']?.clear();
+                            }
+                          });
+                        },
+                        decoration: const InputDecoration(isDense: true, border: OutlineInputBorder()),
+                      ),
+                      // "その他" を選んだら同じ列内に TextFormField を表示
+                      if (selectedValue == "その他") ...[
+                        const SizedBox(height: 6),
+                        TextFormField(
+                          controller: controller,
+                          decoration: const InputDecoration(
+                            isDense: true,
+                            border: OutlineInputBorder(),
+                            hintText: 'カスタム入力',
+                          ),
+                          onChanged: (v) {
+                            // カスタム入力は controller に入り、選択値も同期しておく
+                            setState(() {
+                              _dropdownSelected[keyName] = v;
+                            });
+                          },
+                        ),
+                      ],
+                    ],
+                  );
+                })
+                // options が無ければ従来の TextFormField を出す
+                    : TextFormField(
+                  controller: controller,
+                  decoration: const InputDecoration(isDense: true, border: OutlineInputBorder()),
                 ),
               ),
-            ),
-            const SizedBox(width: 8),
-            SizedBox(
-              width: unitWidth, // unit が null でも必ず幅を確保
-              child: (unit != null)
-                  ? Text(unit, style: const TextStyle(color: Colors.grey))
-                  : const SizedBox.shrink(),
-            )
-          ]),
-        ]));
+              const SizedBox(width: 8),
+              SizedBox(
+                width: unitWidth,
+                child: (unit != null) ? Text(unit, style: const TextStyle(color: Colors.grey)) : const SizedBox.shrink(),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
+
+
+
+
 
   Future<void> _savePart() async {
     debugPrint("=== _savePart START ===");
