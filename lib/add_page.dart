@@ -28,9 +28,14 @@ class _AddPartPageState extends State<AddPartPage> {
   // カテゴリとパラメータ
   Map<String, dynamic> _categories = {};
   String? _selectedCategory;
+  String? _selectedSubcategory;
+  String? _selectedImplementation; // 選択中の実装形式
   Map<String, TextEditingController> _paramControllers = {};
 
   late Map<String, double> _maxUnitWidths = {};
+
+  // State クラスのフィールドに追加
+  final Map<String, String> _dropdownSelected = {}; // keyName -> 選択値 ('その他' も含む)
 
   @override
   void initState() {
@@ -83,23 +88,6 @@ class _AddPartPageState extends State<AddPartPage> {
   }
 
   // --- カテゴリ変更時の処理: 既存コントローラは dispose してから新規作成 ---
-  void _onCategorySelected(String? category) {
-    if (category == null) return;
-
-    // 既存コントローラを破棄してからクリア（メモリリーク防止）
-    for (final c in _paramControllers.values) {
-      c.dispose();
-    }
-    _paramControllers.clear();
-
-    setState(() {
-      _selectedCategory = category;
-      final paramsDynamic = _categories[category];
-      if (paramsDynamic is Map) {
-        _createControllersForParams(Map<String, dynamic>.from(paramsDynamic));
-      }
-    });
-  }
 
   double _calcMaxUnitWidth(String category, Map<String, dynamic> schema) {
     final units = <String>[];
@@ -130,11 +118,13 @@ class _AddPartPageState extends State<AddPartPage> {
       tp.text = TextSpan(text: u, style: textStyle);
       tp.layout();
       if (tp.width > maxWidth) {
-        maxWidth = tp.width;
+        maxWidth = tp.width+10;
       }
     }
     return maxWidth;
   }
+
+
 
   /// schema を再帰して "leaf" (label を持つフィールド) に対して
   /// controller を作る。キーはドット区切り (例: "size.depth") で格納する。
@@ -161,155 +151,408 @@ class _AddPartPageState extends State<AddPartPage> {
     });
   }
 
-  /// ドット区切りキーに対応して schema 定義を辿るヘルパ
-  Map<String, dynamic>? _resolveDefForDottedKey(
-      String category, String dottedKey) {
-    final catDefRaw = _categories[category];
-    if (catDefRaw is! Map) return null;
 
-    Map<String, dynamic>? node = Map<String, dynamic>.from(catDefRaw);
-    final parts = dottedKey.split('.');
-    for (final p in parts) {
-      final child = node?[p];
-      if (child == null) return null;
-      if (child is Map) {
-        node = Map<String, dynamic>.from(child);
-      } else {
-        return null;
+
+
+  /// category と subcategory を考慮して、keyName (dot含む) に対する field 定義(Map) を返す。
+  Map<String, dynamic>? _getFieldDef(String category, String keyName, {String? subcategory}) {
+    if (category.isEmpty) return null;
+    final cat = _categories[category];
+    if (cat == null) return null;
+
+    // 参照ベースを決める（サブカテゴリ優先）
+    Map<String, dynamic>? base;
+    if (subcategory != null && subcategory.isNotEmpty && cat['subcategories'] != null) {
+      final submap = cat['subcategories'];
+      if (submap is Map && submap[subcategory] != null) {
+        final subDef = submap[subcategory];
+        if (subDef is Map<String, dynamic>) base = Map<String, dynamic>.from(subDef);
+        else if (subDef is Map) base = Map<String, dynamic>.from(subDef);
       }
     }
-    return node;
+    // サブカテゴリがない場合はトップレベルのカテゴリ定義を参照
+    base ??= Map<String, dynamic>.from(cat as Map);
+
+    // 割り当てられた base のうち param 定義だけを扱う (排除リスト)
+    // "name", "subcategories", "label" などがメタ情報として入るため、それらを除外して params 該当箇所を探します。
+    // ただし、あなたのスキーマは「subcategories の中に直接 field がある」形なので直接参照する。
+    // keyName がネストなら辿る
+    if (keyName.contains('.')) {
+      final parts = keyName.split('.');
+      dynamic cur = base;
+      for (final p in parts) {
+        if (cur is Map && cur[p] != null) {
+          cur = cur[p];
+        } else {
+          return null;
+        }
+      }
+      if (cur is Map) return Map<String, dynamic>.from(cur);
+      return null;
+    }
+
+    // 直接 keyName を探す。 ただし base のメタキー (name/subcategories) と区別する
+    final v = base[keyName];
+    if (v is Map<String, dynamic>) return v;
+    if (v is Map) return Map<String, dynamic>.from(v);
+
+    return null;
   }
-  // State クラスのフィールドに追加
-  final Map<String, String> _dropdownSelected = {}; // keyName -> 選択値 ('その他' も含む)
+
+  /// ノード（Map）が「子パラメータ（展開）」かどうかを返す
+  /// - size:{ depth:{...}, length:{...} } のように、親のキーがパラメータキーを含む場合は true
+  /// - package:{ label:..., optionByImplementation: {...} } のようにメタ情報だけなら false
+  bool _isGroupNode(dynamic node) {
+    if (node is! Map) return false;
+    // スキーマでメタ情報として使うキー（現状の想定）
+    const reservedKeys = {'label', 'unit', 'option', 'optionByImplementation', 'name', 'default'};
+
+    for (final k in node.keys) {
+      if (!reservedKeys.contains(k)) {
+        // メタキー以外のキーがあれば「子要素を持つグループ」と判断
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// スキーマに準拠してパラメータを構築する
+  List<Widget> _buildCategoryParams() {
+    final category = _categories[_selectedCategory];
+    if (category == null) return [];
+
+    Map<String, dynamic>? paramMap;
+
+    // サブカテゴリ選択時
+    if (_selectedSubcategory != null &&
+        category["subcategories"] != null &&
+        category["subcategories"][_selectedSubcategory] != null) {
+      paramMap = Map<String, dynamic>.from(
+          category["subcategories"][_selectedSubcategory]);
+    } else {
+      // サブカテゴリが存在しない or 未選択 → category直下
+      paramMap = Map<String, dynamic>.from(category);
+    }
+
+    // "name" や "subcategories" はパラメータではない
+    paramMap.remove("name");
+    paramMap.remove("subcategories");
+
+    final widgets = <Widget>[];
+
+    for (final entry in paramMap.entries) {
+      final key = entry.key;
+      final value = entry.value;
+
+      // _paramControllers に TextEditingController を安全に保持
+      if (!_paramControllers.containsKey(key)) {
+        _paramControllers[key] = TextEditingController();
+      }
+
+      widgets.add(_buildParamRow(key, value));
+    }
+
+    return widgets;
+  }
 
 
   /// フォーム行を描画（TextField の右に unit を固定表示）
   /// keyName はドット区切りキー (例: "size.depth")
-  Widget _buildParamRow(String keyName, TextEditingController controller) {
-    final category = _selectedCategory ?? '';
-    final def = _resolveDefForDottedKey(category, keyName);
+  /// 通常のテキスト/ドロップダウン行の描画関数（既存のものを維持）
+  /// key: dotted key, value: Map定義 (label/unit/option/…)
+  Widget _buildParamRow(String key, dynamic param) {
+    if (param == null) return const SizedBox.shrink();
 
-    final label = (def != null && def['label'] != null)
-        ? def['label'].toString()
-        : keyName.split('.').last;
-    final unit = (def != null && def['unit'] != null) ? def['unit'].toString() : null;
+    final label = (param is Map && param["label"] is String)
+        ? param["label"] as String
+        : key;
+    final unit = (param is Map && param["unit"] is String)
+        ? param["unit"] as String?
+        : null;
 
-    // JSON 側でどのプロパティ名を使っているかわからないので複数候補をチェックする
-    List<String>? options;
-    if (def is Map<String, dynamic>) {
-      if (def['option'] != null) options = List<String>.from(def['option']);
-      else if (def['options'] != null) options = List<String>.from(def['options']);
-      else if (def['types'] != null) options = List<String>.from(def['types']);
+    // --------------------------------------------
+    // ① 実装形式 (implementation)
+    // --------------------------------------------
+    if (key == "implementation" && param is Map && param["option"] is List) {
+      final options = List<String>.from(param["option"]);
+      final currentValue = _selectedImplementation;
+
+      return DropdownButtonFormField<String>(
+        decoration: InputDecoration(labelText: label),
+        value: currentValue,
+        items: options
+            .map((opt) => DropdownMenuItem<String>(
+          value: opt,
+          child: Text(opt),
+        ))
+            .toList(),
+        onChanged: (val) {
+          setState(() {
+            _selectedImplementation = val;
+          });
+        },
+      );
     }
 
-    // --- package が implementation に依存する場合の処理 ---
-    // JSON 側に 'optionByImplementation' を置いている場合、implementation の選択値を見て置き換える
-    if (def is Map<String, dynamic> && def['optionByImplementation'] != null) {
-      // implementation の選択を参照（Stateの _dropdownSelected または controller の text を参照）
-      final impl = _dropdownSelected['implementation'] ??
-          (_paramControllers['implementation']?.text.isNotEmpty == true
-              ? _paramControllers['implementation']!.text
-              : null);
+    // --------------------------------------------
+    // ② パッケージ (implementation依存)
+    // --------------------------------------------
+    if (key == "package" && param is Map) {
+      final implOptions = param["optionByImplementation"];
+      if (implOptions is Map<String, dynamic>) {
+        final options = _selectedImplementation != null &&
+            implOptions.containsKey(_selectedImplementation)
+            ? List<String>.from(implOptions[_selectedImplementation] ?? [])
+            : <String>[];
 
-      final map = Map<String, dynamic>.from(def['optionByImplementation']);
-      if (impl != null && map.containsKey(impl)) {
-        options = List<String>.from(map[impl]);
-      } else {
-        // 実装形式未選択なら options を空にして、Dropdown を出すなら 'その他' のみにする／
-        options = <String>[];
+        final controller = _paramControllers.putIfAbsent(key, () => TextEditingController());
+
+        return DropdownButtonFormField<String>(
+          decoration: InputDecoration(labelText: label),
+          value: controller.text.isNotEmpty ? controller.text : null,
+          items: options
+              .map((opt) => DropdownMenuItem<String>(
+            value: opt,
+            child: Text(opt),
+          ))
+              .toList(),
+          onChanged: (val) {
+            setState(() {
+              controller.text = val ?? "";
+            });
+          },
+        );
       }
     }
 
-    final unitWidth = _maxUnitWidths[category] ?? 0;
+    // --------------------------------------------
+    // ③ size のような label + 子要素を持つ構造
+    // --------------------------------------------
+    if (param is Map && param.containsKey("label")) {
+      final subParams = param.entries
+          .where((e) => e.key != "label" && e.key != "unit" && e.value is Map)
+          .toList();
 
-    // 現在の選択（State に保持しているもの優先、なければ controller.text を使う）
-    String? selectedValue = _dropdownSelected[keyName] ?? (controller.text.isNotEmpty ? controller.text : null);
+      if (subParams.isNotEmpty) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label),
+            const SizedBox(height: 6),
+            ...subParams.map((e) => _buildParamRow(e.key, e.value)).toList(),
+          ],
+        );
+      }
+    }
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 6),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+    // --------------------------------------------
+    // ④ 通常のパラメータ処理
+    // optionがある → ドロップダウン
+    // ない → テキストフィールド
+    // --------------------------------------------
+    final controller =
+    _paramControllers.putIfAbsent(key, () => TextEditingController());
+
+    if (param is Map && param.containsKey("option")) {
+      List<String> options = List<String>.from(param["option"]);
+
+      // 「その他」を追加（重複防止）
+      if (!options.contains("その他")) options.add("その他");
+
+      // 現在の選択値
+      String? selectedOption =
+      controller.text.isNotEmpty ? controller.text : null;
+
+      // 「その他」入力欄用
+      final otherController = TextEditingController();
+
+      return StatefulBuilder(
+        builder: (context, setState) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: (options != null && options.isNotEmpty)
-                // options があるならドロップダウン（"その他" を末尾に追加）
-                    ? StatefulBuilder(builder: (context, setLocalState) {
-                  return Column(
-                    children: [
-                      DropdownButtonFormField<String>(
-                        value: selectedValue,
-                        items: [
-                          ...options!.map((opt) => DropdownMenuItem(value: opt, child: Text(opt))),
-                          const DropdownMenuItem(value: "その他", child: Text("その他")),
-                        ],
-                        onChanged: (val) {
-                          // ローカルと上位 State の両方を更新する（永続化のため）
-                          setLocalState(() {
-                            selectedValue = val;
-                          });
-                          setState(() {
-                            _dropdownSelected[keyName] = val ?? '';
-                            if (val != "その他") {
-                              controller.text = val ?? '';
-                            } else {
-                              controller.text = ''; // その他は自由入力へ
-                            }
-
-                            // もし implementation を選択したなら package に影響するので package をクリア
-                            if (keyName == 'implementation') {
-                              _dropdownSelected.remove('package');
-                              _paramControllers['package']?.clear();
-                            }
-                          });
-                        },
-                        decoration: const InputDecoration(isDense: true, border: OutlineInputBorder()),
-                      ),
-                      // "その他" を選んだら同じ列内に TextFormField を表示
-                      if (selectedValue == "その他") ...[
-                        const SizedBox(height: 6),
-                        TextFormField(
-                          controller: controller,
-                          decoration: const InputDecoration(
-                            isDense: true,
-                            border: OutlineInputBorder(),
-                            hintText: 'カスタム入力',
-                          ),
-                          onChanged: (v) {
-                            // カスタム入力は controller に入り、選択値も同期しておく
-                            setState(() {
-                              _dropdownSelected[keyName] = v;
-                            });
-                          },
-                        ),
-                      ],
-                    ],
+              DropdownButtonFormField<String>(
+                value: selectedOption != "" ? selectedOption : null,
+                decoration: InputDecoration(labelText: param["label"]),
+                items: options.map((opt) {
+                  return DropdownMenuItem<String>(
+                    value: opt,
+                    child: Text(opt),
                   );
-                })
-                // options が無ければ従来の TextFormField を出す
-                    : TextFormField(
-                  controller: controller,
-                  decoration: const InputDecoration(isDense: true, border: OutlineInputBorder()),
-                ),
+                }).toList(),
+                onChanged: (newValue) {
+                  setState(() {
+                    selectedOption = newValue;
+                    controller.text = newValue ?? "";
+                    if (newValue != "その他") {
+                      otherController.clear();
+                    }
+                  });
+                },
               ),
-              const SizedBox(width: 8),
-              SizedBox(
-                width: unitWidth,
-                child: (unit != null) ? Text(unit, style: const TextStyle(color: Colors.grey)) : const SizedBox.shrink(),
-              ),
+              if (selectedOption == "その他") ...[
+                const SizedBox(height: 6),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: otherController,
+                        decoration:
+                        InputDecoration(labelText: "その他（直接入力）"),
+                        onChanged: (text) {
+                          controller.text = text;
+                        },
+                      ),
+                    ),
+                  ],
+                )
+              ],
             ],
+          );
+        },
+      );
+    }
+
+    // optionがない → 通常テキスト入力
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: TextFormField(
+            controller: controller,
+            decoration: InputDecoration(labelText: label),
           ),
-        ],
-      ),
+        ),
+        if (unit != null) ...[
+          const SizedBox(width: 8),
+          Padding(padding: EdgeInsets.only(left: 10),child: Text(unit),),
+        ]
+      ],
     );
   }
 
+  /// category/subcategory に属する「実パラメータ」だけを Map で返す
+  Map<String, dynamic> _getParamsForCategory(String category, [String? subcategory]) {
+    final cat = _categories[category];
+    if (cat == null) return {};
 
+    Map<String, dynamic>? base;
+    if (subcategory != null && subcategory.isNotEmpty && cat['subcategories'] != null) {
+      final sub = cat['subcategories'];
+      if (sub is Map && sub[subcategory] != null) {
+        final subDef = sub[subcategory];
+        if (subDef is Map<String, dynamic>) base = Map<String, dynamic>.from(subDef);
+        else if (subDef is Map) base = Map<String, dynamic>.from(subDef as Map);
+      }
+    }
+    base ??= Map<String, dynamic>.from(cat as Map);
+
+    // 除外すべきメタキー
+    final reserved = {'name', 'label', 'subcategories', 'subcategory'};
+
+    // Collect params: キー→def で返す（reservedを除外）
+    final result = <String, dynamic>{};
+    base.forEach((k, v) {
+      if (reserved.contains(k)) return;
+      // v が Map ならそれが param 定義 (label/unit/option 等)。許容して追加
+      if (v is Map) {
+        result[k] = v;
+      }
+    });
+
+    return result;
+  }
+
+
+  void _updateMaxUnitWidthForSelection(String category, String? subcategory) {
+    final params = _getParamsForCategory(category, subcategory);
+    final tp = TextPainter(textDirection: TextDirection.ltr);
+    const textStyle = TextStyle(color: Colors.grey);
+    double maxW = 0.0;
+
+    void collect(Map<String, dynamic> m) {
+      m.forEach((k, v) {
+        if (v is Map) {
+          if (v.containsKey('unit') && v['unit'] != null) {
+            final u = v['unit'].toString();
+            tp.text = TextSpan(text: u, style: textStyle);
+            tp.layout();
+            if (tp.width > maxW) maxW = tp.width;
+          } else {
+            // ネストされている可能性がある
+            collect(Map<String, dynamic>.from(v));
+          }
+        }
+      });
+    }
+
+    collect(params);
+
+    setState(() {
+      _maxUnitWidths[category] = maxW;
+    });
+  }
+
+
+  void _loadParamsForSelection() {
+    // 既存コントローラを破棄してクリア
+    _paramControllers.forEach((_, c) => c.dispose());
+    _paramControllers.clear();
+
+    if (_selectedCategory == null) {
+      setState(() {});
+      return;
+    }
+
+    final catDefRaw = _categories[_selectedCategory];
+    if (catDefRaw == null || catDefRaw is! Map<String, dynamic>) {
+      setState(() {});
+      return;
+    }
+
+    // 参照ソース（サブが選択されていればサブ優先、なければカテゴリ直下）
+    Map<String, dynamic> source;
+    final subMap = catDefRaw['subcategories'];
+    if (subMap is Map && _selectedSubcategory != null && subMap[_selectedSubcategory] is Map) {
+      source = Map<String, dynamic>.from(subMap[_selectedSubcategory] as Map);
+    } else {
+      source = Map<String, dynamic>.from(catDefRaw);
+    }
+
+    // 再帰して leaf (label を持つ) 項目の dotted-key で controller を生成する。
+    void collect(Map<String, dynamic> m, [String prefix = '']) {
+      m.forEach((k, v) {
+        if (k == 'name' || k == 'subcategories') return; // メタ情報はスキップ
+        final dotted = prefix.isEmpty ? k : '$prefix.$k';
+
+        if (v is Map<String, dynamic>) {
+          // 優先判定：子 Map が存在するか -> 存在するならネスト（親を展開して子を収集）
+          if (_isGroupNode(v)) {
+            // 親に label があっても子を優先 -> 再帰で子を処理
+            collect(Map<String, dynamic>.from(v), dotted);
+          } else if (v.containsKey('label')) {
+            // leaf パラメータ (label を持つ) => controller を作る
+            _paramControllers.putIfAbsent(dotted, () => TextEditingController(
+              text: v['default']?.toString() ?? '',
+            ));
+          } else {
+            // Map だが label も子 Map も無いケース（可能性は低い） -> 再帰的に探す
+            collect(Map<String, dynamic>.from(v), dotted);
+          }
+        } else {
+          // 非 Map の値は通常スキップ（スキーマの想定から外れる）
+        }
+      });
+    }
+
+    collect(source);
+
+    // unit幅などを再計算（もし使用している場合）
+    _updateMaxUnitWidthForSelection(_selectedCategory!, _selectedSubcategory);
+
+    setState(() {}); // 再描画
+  }
 
 
 
@@ -430,66 +673,97 @@ class _AddPartPageState extends State<AddPartPage> {
       body: _categories.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : Form(
-              key: _formKey,
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  DropdownButtonFormField<String>(
-                    decoration: const InputDecoration(labelText: "カテゴリ"),
-                    items: _categories.keys
-                        .map((cat) => DropdownMenuItem(
-                              value: cat,
-                              child: Text(cat),
-                            ))
-                        .toList(),
-                    initialValue: _selectedCategory,
-                    onChanged: _onCategorySelected,
-                  ),
-                  TextFormField(
-                    controller: _nameController,
-                    decoration: const InputDecoration(labelText: "部品名"),
-                    validator: (v) => v == null || v.isEmpty ? "必須項目です" : null,
-                  ),
-                  TextFormField(
-                    controller: _codeController,
-                    decoration: const InputDecoration(labelText: "型番"),
-                  ),
-                  TextFormField(
-                    controller: _stockController,
-                    decoration: const InputDecoration(labelText: "在庫数"),
-                    keyboardType: TextInputType.number,
-                  ),
-                  TextFormField(
-                    controller: _locationController,
-                    decoration: const InputDecoration(labelText: "保管場所"),
-                  ),
-                  TextFormField(
-                    controller: _datasheetUrlController,
-                    decoration: const InputDecoration(labelText: "データシートURL"),
-                  ),
-                  TextFormField(
-                    controller: _buyUrlController,
-                    decoration: const InputDecoration(labelText: "購入先URL"),
-                  ),
-                  const SizedBox(height: 20),
-                  if (_selectedCategory != null) ...[
-                    const Divider(),
-                    Text("カテゴリパラメータ",
-                        style: Theme.of(context).textTheme.titleMedium),
-                    const SizedBox(height: 10),
-                    ..._paramControllers.entries
-                        .map((e) => _buildParamRow(e.key, e.value))
-                        .toList(),
-                  ],
-                  const SizedBox(height: 20),
-                  ElevatedButton.icon(
-                    onPressed: _savePart,
-                    icon: const Icon(Icons.save),
-                    label: const Text("登録"),
-                  )
-                ],
-              ),
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            // ===== メインカテゴリ =====
+            DropdownButtonFormField<String>(
+              decoration: const InputDecoration(labelText: "カテゴリ"),
+              items: _categories.entries
+                  .map((entry) => DropdownMenuItem(
+                value: entry.key,
+                child: Text(entry.value["name"] ?? entry.key),
+              ))
+                  .toList(),
+              value: _selectedCategory,
+              onChanged: (value) {
+                setState(() {
+                  _selectedCategory = value;
+                  _selectedSubcategory = null;
+                  _paramControllers.clear();
+                });
+              },
             ),
+
+            // ===== サブカテゴリ（存在する場合のみ） =====
+            if (_selectedCategory != null &&
+                _categories[_selectedCategory]?["subcategories"] != null)
+              DropdownButtonFormField<String>(
+                decoration: const InputDecoration(labelText: "サブカテゴリ"),
+                items: (_categories[_selectedCategory]!["subcategories"]
+                as Map<String, dynamic>)
+                    .entries
+                    .map((entry) => DropdownMenuItem(
+                  value: entry.key,
+                  child: Text(entry.value["name"] ?? entry.key),
+                ))
+                    .toList(),
+                value: _selectedSubcategory,
+                onChanged: (value) {
+                  setState(() {
+                    _selectedSubcategory = value;
+                    _paramControllers.clear();
+                  });
+                },
+              ),
+
+            // ===== 共通フィールド =====
+            TextFormField(
+              controller: _nameController,
+              decoration: const InputDecoration(labelText: "部品名"),
+              validator: (v) => v == null || v.isEmpty ? "必須項目です" : null,
+            ),
+            TextFormField(
+                controller: _codeController,
+                decoration: const InputDecoration(labelText: "型番")),
+            TextFormField(
+              controller: _stockController,
+              decoration: const InputDecoration(labelText: "在庫数"),
+              keyboardType: TextInputType.number,
+            ),
+            TextFormField(
+                controller: _locationController,
+                decoration: const InputDecoration(labelText: "保管場所")),
+            TextFormField(
+                controller: _datasheetUrlController,
+                decoration:
+                const InputDecoration(labelText: "データシートURL")),
+            TextFormField(
+                controller: _buyUrlController,
+                decoration:
+                const InputDecoration(labelText: "購入先URL")),
+
+            const SizedBox(height: 20),
+
+            // ===== カテゴリパラメータ =====
+            if (_selectedCategory != null) ...[
+              const Divider(),
+              Text("カテゴリパラメータ",
+                  style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 10),
+              ..._buildCategoryParams(),
+            ],
+
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: _savePart,
+              icon: const Icon(Icons.save),
+              label: const Text("登録"),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

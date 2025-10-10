@@ -1,85 +1,95 @@
 {
   "Resistor": {
-    "type": {
-      "label":  "種類",
-      "unit":  null,
-      "option": [
-        "カーボン抵抗",
-        "金属皮膜抵抗",
-        "酸化金属皮膜抵抗",
-        "巻線抵抗"
-      ]
-    },
-    "resistance": {"label":  "抵抗値", "unit":  "Ω"},
-    "tolerance": {"label":  "誤差", "unit":  "%", "option": ["±5", "±10", "±1", "±0.1"]},
-    "power": {"label":  "定格電力", "unit":  "W", "option": ["1/8", "1/4", "1/2", "1", "3", "5", "10", "25", "50"]},
-    "temperature_min": {"label":  "最低温度", "unit":  "℃"},
-    "temperature_max": {"label":  "最高温度", "unit":  "℃"},
-    "temperature_coefficient": {"label":  "温度係数", "unit":  "ppm/℃"},
-    "implementation": {"label":  "実装形式", "unit":  null, "option": ["THD", "SMD"]},
-    "package": {
-      "label":  "パッケージ",
-      "unit":  null,
-      "optionByImplementation":  {
-        "SMD": [
-          "0402",
-          "0603",
-          "1005",
-          "1608",
-          "2012",
-          "3216",
-          "3225",
-          "5025",
-          "6432"
-        ],
-        "THD": ["AXIAL", "RADIAL"]
-    }},
-    "size": {
-      "depth": {"label":  "幅", "unit":  "mm"},
-      "length": {"label":  "長さ", "unit":  "mm"}
-    }
-  },
-  "VariableResistor": {
-    "type": {
-      "label": "種類",
-      "unit": null,
-      "option": [
-        "トリマポテンショメータ",
-        "ロータリーポテンショメータ",
-        "スライドポテンショメータ",
-        "デジタルポテンショメータ"
-      ]
-    },
-    "resistance": {"label": "抵抗値", "unit": "Ω"},
-    "tolerance": {"label": "誤差", "unit": "%", "option": ["±10", "±20"]},
-    "power": {"label": "定格電力", "unit": "W"},
-    "adjustment": {"label": "調整方向", "unit": null, "option": ["トップ調整", "サイド調整", "ロータリーノブ", "スライド"]},
-    "taper": {"label": "特性 (テーパー)", "unit": null, "option": ["A (対数)", "B (直線)", "C (逆対数)"]},
-    "life_cycle": {"label": "寿命 (回転/スライド回数)", "unit": "cycles"},
-    "temperature_min": {"label": "最低温度", "unit": "℃"},
-    "temperature_max": {"label": "最高温度", "unit": "℃"},
-    "implementation": {"label": "実装形式", "unit": null, "option": ["THD", "SMD"]},
-    "package": {
-      "label": "パッケージ",
-      "unit": null,
-      "optionByImplementation": {
-        "SMD": [
-          "4mmトリマ", "6mmトリマ"
-        ],
-        "THD": [
-          "9mmロータリ",
-          "16mmロータリ",
-          "24mmロータリ",
-          "スライド型"
-        ]
+    "name": "抵抗",
+    "subcategories": {
+      "StaticResistor": {
+        "name": "固定抵抗",
+        "type": {
+          "label":  "種類",
+          "unit":  null,
+          "option": [
+            "カーボン抵抗",
+            "金属皮膜抵抗",
+            "酸化金属皮膜抵抗",
+            "巻線抵抗"
+          ]
+        },
+        "resistance": {"label":  "抵抗値", "unit":  "Ω"},
+        "tolerance": {"label":  "誤差", "unit":  "%", "option": ["±5", "±10", "±1", "±0.1"]},
+        "power": {"label":  "定格電力", "unit":  "W", "option": ["1/8", "1/4", "1/2", "1", "3", "5", "10", "25", "50"]},
+        "temperature_min": {"label":  "最低温度", "unit":  "℃"},
+        "temperature_max": {"label":  "最高温度", "unit":  "℃"},
+        "temperature_coefficient": {"label":  "温度係数", "unit":  "ppm/℃"},
+        "implementation": {"label":  "実装形式", "unit":  null, "option": ["THD", "SMD"]},
+        "package": {
+          "label":  "パッケージ",
+          "unit":  null,
+          "optionByImplementation":  {
+            "SMD": [
+              "0402",
+              "0603",
+              "1005",
+              "1608",
+              "2012",
+              "3216",
+              "3225",
+              "5025",
+              "6432"
+            ],
+            "THD": ["AXIAL", "RADIAL"]
+          }},
+        "size": {
+          "label": "サイズ",
+          "depth": {"label":  "幅", "unit":  "mm"},
+          "length": {"label":  "長さ", "unit":  "mm"}
+        }
+      },
+      "VariableResistor": {
+        "name": "可変抵抗",
+        "type": {
+          "label": "種類",
+          "unit": null,
+          "option": [
+            "トリマポテンショメータ",
+            "ロータリーポテンショメータ",
+            "スライドポテンショメータ",
+            "デジタルポテンショメータ"
+          ]
+        },
+        "resistance": {"label": "抵抗値", "unit": "Ω"},
+        "tolerance": {"label": "誤差", "unit": "%", "option": ["±10", "±20"]},
+        "power": {"label": "定格電力", "unit": "W"},
+        "adjustment": {"label": "調整方向", "unit": null, "option": ["トップ調整", "サイド調整", "ロータリーノブ", "スライド"]},
+        "taper": {"label": "特性 (テーパー)", "unit": null, "option": ["A (対数)", "B (直線)", "C (逆対数)"]},
+        "life_cycle": {"label": "寿命 (回転/スライド回数)", "unit": "cycles"},
+        "temperature_min": {"label": "最低温度", "unit": "℃"},
+        "temperature_max": {"label": "最高温度", "unit": "℃"},
+        "implementation": {"label": "実装形式", "unit": null, "option": ["THD", "SMD"]},
+        "package": {
+          "label": "パッケージ",
+          "unit": null,
+          "optionByImplementation": {
+            "SMD": [
+              "4mmトリマ", "6mmトリマ"
+            ],
+            "THD": [
+              "9mmロータリ",
+              "16mmロータリ",
+              "24mmロータリ",
+              "スライド型"
+            ]
+          }
+        },
+        "size": {
+          "label": "サイズ",
+          "depth": {"label": "幅", "unit": "mm"},
+          "length": {"label": "長さ", "unit": "mm"}
+        }
       }
-    },
-    "size": {
-      "depth": {"label": "幅", "unit": "mm"},
-      "length": {"label": "長さ", "unit": "mm"}
     }
   },
   "Capacitor": {
+    "name": "コンデンサ",
     "type": {
       "label": "種類",
       "unit": null,
@@ -152,6 +162,7 @@
     }
   },
   "Inductor": {
+    "name": "インダクタ",
     "type": {
       "label": "種類",
       "unit": null,
@@ -207,6 +218,7 @@
       }
     },
     "size": {
+      "label": "サイズ",
       "diameter": {"label": "直径", "unit": "mm"},
       "height": {"label": "高さ", "unit": "mm"},
       "length": {"label": "長さ", "unit": "mm"},

@@ -52,3 +52,5 @@ extension PartDao on AppDatabase {
 
   Future deleteAllParts() => delete(parts).go();
 }
+
+
