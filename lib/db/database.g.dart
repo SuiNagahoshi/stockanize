@@ -334,6 +334,8 @@ class Part extends DataClass implements Insertable<Part> {
           other.datasheetUrl == this.datasheetUrl &&
           other.buyUrl == this.buyUrl &&
           other.metadata == this.metadata);
+
+  void operator [](String other) {}
 }
 
 class PartsCompanion extends UpdateCompanion<Part> {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:linkwell/linkwell.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:stockanize/db/parts.dart';
 
 import 'db/database.dart';
@@ -204,6 +205,17 @@ class HeroListItemPage extends StatelessWidget {
                       ...(metadata ?? {})
                           .entries
                           .map((e) => _buildInfoRow(e.key, e.value)),
+                      const SizedBox(height: 20,),
+                      const Text('QRコード',),
+                      const SizedBox(height: 10,),
+                      Center(
+                        child: QrImageView(
+                          data: part.id.toString(),
+                          version: QrVersions.auto,
+                          size: 180,
+                          backgroundColor: Colors.white,
+                        ),
+                      )
                     ],
                   ),
                 ],

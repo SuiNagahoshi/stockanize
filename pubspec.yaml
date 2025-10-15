@@ -43,6 +43,8 @@ dependencies:
   path: ^1.9.1
   linkwell: ^2.0.6
   build_runner: 2.7.2
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^7.1.2
 
 dev_dependencies:
   flutter_test:

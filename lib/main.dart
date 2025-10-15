@@ -8,6 +8,7 @@ import 'package:stockanize/add_page.dart';
 import 'package:stockanize/db/database.dart';
 import 'package:stockanize/db/parts.dart';
 import 'package:stockanize/parts_list_page.dart';
+import 'package:stockanize/qr_scan_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -98,10 +99,14 @@ class _StockanizeHomePageState extends State<StockanizeHomePage> {
           child: AddPartPage(db: widget.db),
         ),
         SizedBox.expand(
+          child: QrScannerPage(),
+        ),
+        SizedBox.expand(
           child: Center(
-            child: Text("test2"),
+            child: Text("test3"),
           ),
         ),
+
       ][_index],
       floatingActionButton: FloatingActionButton(
         onPressed: () {
@@ -121,6 +126,7 @@ class _StockanizeHomePageState extends State<StockanizeHomePage> {
         },
         items: _navBarItems,
       ),
+
     );
   }
 }
@@ -134,6 +140,10 @@ final _navBarItems = [
       icon: const Icon(Icons.add_circle),
       title: const Text("Add"),
       selectedColor: Colors.teal),
+  SalomonBottomBarItem(
+      icon: const Icon(Icons.qr_code),
+      title: const Text("QRCode"),
+      selectedColor: Colors.lightGreen),
   SalomonBottomBarItem(
       icon: const Icon(Icons.person),
       title: const Text("Settings"),
