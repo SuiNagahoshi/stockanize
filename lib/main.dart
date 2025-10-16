@@ -99,7 +99,7 @@ class _StockanizeHomePageState extends State<StockanizeHomePage> {
           child: AddPartPage(db: widget.db),
         ),
         SizedBox.expand(
-          child: QrScannerPage(),
+          child: QrScanPage(),
         ),
         SizedBox.expand(
           child: Center(

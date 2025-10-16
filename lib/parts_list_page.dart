@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:linkwell/linkwell.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 import 'package:stockanize/db/parts.dart';
+import 'package:stockanize/qr_label.dart';
 
 import 'db/database.dart';
 
@@ -209,12 +209,19 @@ class HeroListItemPage extends StatelessWidget {
                       const Text('QRコード',),
                       const SizedBox(height: 10,),
                       Center(
-                        child: QrImageView(
+                        /*child: QrImageView(
                           data: part.id.toString(),
                           version: QrVersions.auto,
                           size: 180,
                           backgroundColor: Colors.white,
-                        ),
+                        ),*/
+                        child: PartQrCard(
+                          partName: part.name,
+                          location: part.location,
+                          qrData: part.id.toString(),
+                          isHorizontal: true,
+                        )
+                        ,
                       )
                     ],
                   ),

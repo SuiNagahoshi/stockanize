@@ -30,12 +30,8 @@ class _AddPartPageState extends State<AddPartPage> {
   String? _selectedCategory;
   String? _selectedSubcategory;
   String? _selectedImplementation; // 選択中の実装形式
-  Map<String, TextEditingController> _paramControllers = {};
+  final Map<String, TextEditingController> _paramControllers = {};
 
-  late Map<String, double> _maxUnitWidths = {};
-
-  // State クラスのフィールドに追加
-  final Map<String, String> _dropdownSelected = {}; // keyName -> 選択値 ('その他' も含む)
 
   @override
   void initState() {
@@ -77,12 +73,10 @@ class _AddPartPageState extends State<AddPartPage> {
 
       setState(() {
         _categories = cats;
-        _maxUnitWidths = unitWidths;
       });
     } else {
       setState(() {
         _categories = {};
-        _maxUnitWidths = {};
       });
     }
   }
@@ -122,98 +116,6 @@ class _AddPartPageState extends State<AddPartPage> {
       }
     }
     return maxWidth;
-  }
-
-
-
-  /// schema を再帰して "leaf" (label を持つフィールド) に対して
-  /// controller を作る。キーはドット区切り (例: "size.depth") で格納する。
-  void _createControllersForParams(Map<String, dynamic> params,
-      [String prefix = ""]) {
-    params.forEach((key, value) {
-      final dottedKey = prefix.isEmpty ? key : "$prefix.$key";
-
-      if (value is Map) {
-        // leaf 判定: 'label' キーがあれば入力フィールドの対象
-        final mapValue = Map<String, dynamic>.from(value);
-        if (mapValue.containsKey('label')) {
-          // leaf: コントローラを用意
-          _paramControllers.putIfAbsent(
-              dottedKey, () => TextEditingController());
-        } else {
-          // container: ネストを再帰（子要素をそのまま渡す）
-          _createControllersForParams(mapValue, dottedKey);
-        }
-      } else {
-        // 予期しない型でもトリビアルに controller を作る（互換性維持）
-        _paramControllers.putIfAbsent(dottedKey, () => TextEditingController());
-      }
-    });
-  }
-
-
-
-
-  /// category と subcategory を考慮して、keyName (dot含む) に対する field 定義(Map) を返す。
-  Map<String, dynamic>? _getFieldDef(String category, String keyName, {String? subcategory}) {
-    if (category.isEmpty) return null;
-    final cat = _categories[category];
-    if (cat == null) return null;
-
-    // 参照ベースを決める（サブカテゴリ優先）
-    Map<String, dynamic>? base;
-    if (subcategory != null && subcategory.isNotEmpty && cat['subcategories'] != null) {
-      final submap = cat['subcategories'];
-      if (submap is Map && submap[subcategory] != null) {
-        final subDef = submap[subcategory];
-        if (subDef is Map<String, dynamic>) base = Map<String, dynamic>.from(subDef);
-        else if (subDef is Map) base = Map<String, dynamic>.from(subDef);
-      }
-    }
-    // サブカテゴリがない場合はトップレベルのカテゴリ定義を参照
-    base ??= Map<String, dynamic>.from(cat as Map);
-
-    // 割り当てられた base のうち param 定義だけを扱う (排除リスト)
-    // "name", "subcategories", "label" などがメタ情報として入るため、それらを除外して params 該当箇所を探します。
-    // ただし、あなたのスキーマは「subcategories の中に直接 field がある」形なので直接参照する。
-    // keyName がネストなら辿る
-    if (keyName.contains('.')) {
-      final parts = keyName.split('.');
-      dynamic cur = base;
-      for (final p in parts) {
-        if (cur is Map && cur[p] != null) {
-          cur = cur[p];
-        } else {
-          return null;
-        }
-      }
-      if (cur is Map) return Map<String, dynamic>.from(cur);
-      return null;
-    }
-
-    // 直接 keyName を探す。 ただし base のメタキー (name/subcategories) と区別する
-    final v = base[keyName];
-    if (v is Map<String, dynamic>) return v;
-    if (v is Map) return Map<String, dynamic>.from(v);
-
-    return null;
-  }
-
-  /// ノード（Map）が「子パラメータ（展開）」かどうかを返す
-  /// - size:{ depth:{...}, length:{...} } のように、親のキーがパラメータキーを含む場合は true
-  /// - package:{ label:..., optionByImplementation: {...} } のようにメタ情報だけなら false
-  bool _isGroupNode(dynamic node) {
-    if (node is! Map) return false;
-    // スキーマでメタ情報として使うキー（現状の想定）
-    const reservedKeys = {'label', 'unit', 'option', 'optionByImplementation', 'name', 'default'};
-
-    for (final k in node.keys) {
-      if (!reservedKeys.contains(k)) {
-        // メタキー以外のキーがあれば「子要素を持つグループ」と判断
-        return true;
-      }
-    }
-    return false;
   }
 
   /// スキーマに準拠してパラメータを構築する
@@ -279,7 +181,7 @@ class _AddPartPageState extends State<AddPartPage> {
 
       return DropdownButtonFormField<String>(
         decoration: InputDecoration(labelText: label),
-        value: currentValue,
+        initialValue: currentValue,
         items: options
             .map((opt) => DropdownMenuItem<String>(
           value: opt,
@@ -309,7 +211,7 @@ class _AddPartPageState extends State<AddPartPage> {
 
         return DropdownButtonFormField<String>(
           decoration: InputDecoration(labelText: label),
-          value: controller.text.isNotEmpty ? controller.text : null,
+          initialValue: controller.text.isNotEmpty ? controller.text : null,
           items: options
               .map((opt) => DropdownMenuItem<String>(
             value: opt,
@@ -339,7 +241,7 @@ class _AddPartPageState extends State<AddPartPage> {
           children: [
             Text(label),
             const SizedBox(height: 6),
-            ...subParams.map((e) => _buildParamRow(e.key, e.value)).toList(),
+            ...subParams.map((e) => _buildParamRow(e.key, e.value)),
           ],
         );
       }
@@ -372,7 +274,7 @@ class _AddPartPageState extends State<AddPartPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               DropdownButtonFormField<String>(
-                value: selectedOption != "" ? selectedOption : null,
+                initialValue: selectedOption != "" ? selectedOption : null,
                 decoration: InputDecoration(labelText: param["label"]),
                 items: options.map((opt) {
                   return DropdownMenuItem<String>(
@@ -431,130 +333,6 @@ class _AddPartPageState extends State<AddPartPage> {
       ],
     );
   }
-
-  /// category/subcategory に属する「実パラメータ」だけを Map で返す
-  Map<String, dynamic> _getParamsForCategory(String category, [String? subcategory]) {
-    final cat = _categories[category];
-    if (cat == null) return {};
-
-    Map<String, dynamic>? base;
-    if (subcategory != null && subcategory.isNotEmpty && cat['subcategories'] != null) {
-      final sub = cat['subcategories'];
-      if (sub is Map && sub[subcategory] != null) {
-        final subDef = sub[subcategory];
-        if (subDef is Map<String, dynamic>) base = Map<String, dynamic>.from(subDef);
-        else if (subDef is Map) base = Map<String, dynamic>.from(subDef as Map);
-      }
-    }
-    base ??= Map<String, dynamic>.from(cat as Map);
-
-    // 除外すべきメタキー
-    final reserved = {'name', 'label', 'subcategories', 'subcategory'};
-
-    // Collect params: キー→def で返す（reservedを除外）
-    final result = <String, dynamic>{};
-    base.forEach((k, v) {
-      if (reserved.contains(k)) return;
-      // v が Map ならそれが param 定義 (label/unit/option 等)。許容して追加
-      if (v is Map) {
-        result[k] = v;
-      }
-    });
-
-    return result;
-  }
-
-
-  void _updateMaxUnitWidthForSelection(String category, String? subcategory) {
-    final params = _getParamsForCategory(category, subcategory);
-    final tp = TextPainter(textDirection: TextDirection.ltr);
-    const textStyle = TextStyle(color: Colors.grey);
-    double maxW = 0.0;
-
-    void collect(Map<String, dynamic> m) {
-      m.forEach((k, v) {
-        if (v is Map) {
-          if (v.containsKey('unit') && v['unit'] != null) {
-            final u = v['unit'].toString();
-            tp.text = TextSpan(text: u, style: textStyle);
-            tp.layout();
-            if (tp.width > maxW) maxW = tp.width;
-          } else {
-            // ネストされている可能性がある
-            collect(Map<String, dynamic>.from(v));
-          }
-        }
-      });
-    }
-
-    collect(params);
-
-    setState(() {
-      _maxUnitWidths[category] = maxW;
-    });
-  }
-
-
-  void _loadParamsForSelection() {
-    // 既存コントローラを破棄してクリア
-    _paramControllers.forEach((_, c) => c.dispose());
-    _paramControllers.clear();
-
-    if (_selectedCategory == null) {
-      setState(() {});
-      return;
-    }
-
-    final catDefRaw = _categories[_selectedCategory];
-    if (catDefRaw == null || catDefRaw is! Map<String, dynamic>) {
-      setState(() {});
-      return;
-    }
-
-    // 参照ソース（サブが選択されていればサブ優先、なければカテゴリ直下）
-    Map<String, dynamic> source;
-    final subMap = catDefRaw['subcategories'];
-    if (subMap is Map && _selectedSubcategory != null && subMap[_selectedSubcategory] is Map) {
-      source = Map<String, dynamic>.from(subMap[_selectedSubcategory] as Map);
-    } else {
-      source = Map<String, dynamic>.from(catDefRaw);
-    }
-
-    // 再帰して leaf (label を持つ) 項目の dotted-key で controller を生成する。
-    void collect(Map<String, dynamic> m, [String prefix = '']) {
-      m.forEach((k, v) {
-        if (k == 'name' || k == 'subcategories') return; // メタ情報はスキップ
-        final dotted = prefix.isEmpty ? k : '$prefix.$k';
-
-        if (v is Map<String, dynamic>) {
-          // 優先判定：子 Map が存在するか -> 存在するならネスト（親を展開して子を収集）
-          if (_isGroupNode(v)) {
-            // 親に label があっても子を優先 -> 再帰で子を処理
-            collect(Map<String, dynamic>.from(v), dotted);
-          } else if (v.containsKey('label')) {
-            // leaf パラメータ (label を持つ) => controller を作る
-            _paramControllers.putIfAbsent(dotted, () => TextEditingController(
-              text: v['default']?.toString() ?? '',
-            ));
-          } else {
-            // Map だが label も子 Map も無いケース（可能性は低い） -> 再帰的に探す
-            collect(Map<String, dynamic>.from(v), dotted);
-          }
-        } else {
-          // 非 Map の値は通常スキップ（スキーマの想定から外れる）
-        }
-      });
-    }
-
-    collect(source);
-
-    // unit幅などを再計算（もし使用している場合）
-    _updateMaxUnitWidthForSelection(_selectedCategory!, _selectedSubcategory);
-
-    setState(() {}); // 再描画
-  }
-
-
 
   Future<void> _savePart() async {
     debugPrint("=== _savePart START ===");
@@ -686,7 +464,7 @@ class _AddPartPageState extends State<AddPartPage> {
                 child: Text(entry.value["name"] ?? entry.key),
               ))
                   .toList(),
-              value: _selectedCategory,
+              initialValue: _selectedCategory,
               onChanged: (value) {
                 setState(() {
                   _selectedCategory = value;
@@ -709,7 +487,7 @@ class _AddPartPageState extends State<AddPartPage> {
                   child: Text(entry.value["name"] ?? entry.key),
                 ))
                     .toList(),
-                value: _selectedSubcategory,
+                initialValue: _selectedSubcategory,
                 onChanged: (value) {
                   setState(() {
                     _selectedSubcategory = value;
