@@ -21,7 +21,7 @@ class _QrResultPageState extends State<QrResultPage> {
   }
 
   Future<void> _loadPart() async {
-    final db = AppDatabase(); // ← あなたのDBインスタンス生成方法に合わせて修正
+    final db = AppDatabase.instance;
     final id = int.tryParse(widget.partId);
     if (id == null) {
       setState(() => loading = false);
