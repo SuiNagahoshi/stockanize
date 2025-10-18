@@ -106,7 +106,6 @@ class _StockanizeHomePageState extends State<StockanizeHomePage> {
             child: Text("test3"),
           ),
         ),
-
       ][_index],
       floatingActionButton: FloatingActionButton(
         onPressed: () {
@@ -126,7 +125,6 @@ class _StockanizeHomePageState extends State<StockanizeHomePage> {
         },
         items: _navBarItems,
       ),
-
     );
   }
 }

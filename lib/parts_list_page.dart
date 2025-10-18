@@ -52,7 +52,6 @@ class _PartsListPageState extends State<PartsListPage> {
               itemBuilder: (context, index) {
                 final part = parts[index];
 
-                // idはDBから来るのでnullableだが、ここでは必ず存在するはず
                 final id = part.id;
                 final heroTag = 'hero_part_$id';
 
@@ -205,9 +204,15 @@ class HeroListItemPage extends StatelessWidget {
                       ...(metadata ?? {})
                           .entries
                           .map((e) => _buildInfoRow(e.key, e.value)),
-                      const SizedBox(height: 20,),
-                      const Text('QRコード',),
-                      const SizedBox(height: 10,),
+                      const SizedBox(
+                        height: 20,
+                      ),
+                      const Text(
+                        'QRコード',
+                      ),
+                      const SizedBox(
+                        height: 10,
+                      ),
                       Center(
                         /*child: QrImageView(
                           data: part.id.toString(),
@@ -220,8 +225,7 @@ class HeroListItemPage extends StatelessWidget {
                           location: part.location,
                           qrData: part.id.toString(),
                           isHorizontal: true,
-                        )
-                        ,
+                        ),
                       )
                     ],
                   ),
@@ -314,10 +318,13 @@ class HeroListItemPage extends StatelessWidget {
     // カテゴリごとのスキーマ定義を取得（なければ空マップ）
     final category = (part.category ?? '').toString();
     final Map<String, dynamic> categorySchema =
-    (part.metadata?[category] is Map) ? Map<String, dynamic>.from(part.metadata?[category]) : <String, dynamic>{};
+        (part.metadata?[category] is Map)
+            ? Map<String, dynamic>.from(part.metadata?[category])
+            : <String, dynamic>{};
 
     // 内部再帰関数（現在のスキーマコンテキストを受け取る）
-    Widget buildRec(String curKey, dynamic curValue, Map<String, dynamic> curSchema, double curIndent) {
+    Widget buildRec(String curKey, dynamic curValue,
+        Map<String, dynamic> curSchema, double curIndent) {
       // スキーマ定義を解決するヘルパ（ドット区切りキーにも対応）
       Map<String, dynamic>? resolveDef(Map<String, dynamic> s, String k) {
         if (s.containsKey(k)) {
@@ -389,7 +396,8 @@ class HeroListItemPage extends StatelessWidget {
               Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
               ...curValue.entries.map((entry) {
                 // entry.key は動的なので文字列化して渡す
-                return buildRec(entry.key.toString(), entry.value, childSchemaToUse, curIndent + 16);
+                return buildRec(entry.key.toString(), entry.value,
+                    childSchemaToUse, curIndent + 16);
               }).toList(),
             ],
           ),
@@ -403,14 +411,19 @@ class HeroListItemPage extends StatelessWidget {
             children: [
               Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
               ...curValue.asMap().entries.map((entry) {
-                return buildRec('[${entry.key}]', entry.value, childrenSchema ?? curSchema, curIndent + 16);
+                return buildRec('[${entry.key}]', entry.value,
+                    childrenSchema ?? curSchema, curIndent + 16);
               }).toList(),
             ],
           ),
         );
       } else {
         // スカラー値
-        final display = (curValue == null) ? '' : (unit != null ? '${curValue.toString()} $unit' : curValue.toString());
+        final display = (curValue == null)
+            ? ''
+            : (unit != null
+                ? '${curValue.toString()} $unit'
+                : curValue.toString());
         return Padding(
           padding: EdgeInsets.only(left: curIndent, top: 4, bottom: 4),
           child: Row(
@@ -418,7 +431,8 @@ class HeroListItemPage extends StatelessWidget {
             children: [
               SizedBox(
                 width: 100,
-                child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+                child: Text(label,
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
               ),
               Expanded(child: Text(display)),
             ],
@@ -430,7 +444,6 @@ class HeroListItemPage extends StatelessWidget {
     // 初回はカテゴリスキーマをコンテキストとして渡す
     return buildRec(key, value, categorySchema, indent);
   }
-
 
   Widget _buildLinkRow(String label, String? url) {
     if (url == null) return const SizedBox();

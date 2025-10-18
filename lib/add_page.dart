@@ -32,7 +32,6 @@ class _AddPartPageState extends State<AddPartPage> {
   String? _selectedImplementation; // 選択中の実装形式
   final Map<String, TextEditingController> _paramControllers = {};
 
-
   @override
   void initState() {
     super.initState();
@@ -112,7 +111,7 @@ class _AddPartPageState extends State<AddPartPage> {
       tp.text = TextSpan(text: u, style: textStyle);
       tp.layout();
       if (tp.width > maxWidth) {
-        maxWidth = tp.width+10;
+        maxWidth = tp.width + 10;
       }
     }
     return maxWidth;
@@ -157,7 +156,6 @@ class _AddPartPageState extends State<AddPartPage> {
     return widgets;
   }
 
-
   /// フォーム行を描画（TextField の右に unit を固定表示）
   /// keyName はドット区切りキー (例: "size.depth")
   /// 通常のテキスト/ドロップダウン行の描画関数（既存のものを維持）
@@ -184,9 +182,9 @@ class _AddPartPageState extends State<AddPartPage> {
         initialValue: currentValue,
         items: options
             .map((opt) => DropdownMenuItem<String>(
-          value: opt,
-          child: Text(opt),
-        ))
+                  value: opt,
+                  child: Text(opt),
+                ))
             .toList(),
         onChanged: (val) {
           setState(() {
@@ -203,20 +201,21 @@ class _AddPartPageState extends State<AddPartPage> {
       final implOptions = param["optionByImplementation"];
       if (implOptions is Map<String, dynamic>) {
         final options = _selectedImplementation != null &&
-            implOptions.containsKey(_selectedImplementation)
+                implOptions.containsKey(_selectedImplementation)
             ? List<String>.from(implOptions[_selectedImplementation] ?? [])
             : <String>[];
 
-        final controller = _paramControllers.putIfAbsent(key, () => TextEditingController());
+        final controller =
+            _paramControllers.putIfAbsent(key, () => TextEditingController());
 
         return DropdownButtonFormField<String>(
           decoration: InputDecoration(labelText: label),
           initialValue: controller.text.isNotEmpty ? controller.text : null,
           items: options
               .map((opt) => DropdownMenuItem<String>(
-            value: opt,
-            child: Text(opt),
-          ))
+                    value: opt,
+                    child: Text(opt),
+                  ))
               .toList(),
           onChanged: (val) {
             setState(() {
@@ -253,7 +252,7 @@ class _AddPartPageState extends State<AddPartPage> {
     // ない → テキストフィールド
     // --------------------------------------------
     final controller =
-    _paramControllers.putIfAbsent(key, () => TextEditingController());
+        _paramControllers.putIfAbsent(key, () => TextEditingController());
 
     if (param is Map && param.containsKey("option")) {
       List<String> options = List<String>.from(param["option"]);
@@ -263,7 +262,7 @@ class _AddPartPageState extends State<AddPartPage> {
 
       // 現在の選択値
       String? selectedOption =
-      controller.text.isNotEmpty ? controller.text : null;
+          controller.text.isNotEmpty ? controller.text : null;
 
       // 「その他」入力欄用
       final otherController = TextEditingController();
@@ -300,8 +299,7 @@ class _AddPartPageState extends State<AddPartPage> {
                     Expanded(
                       child: TextFormField(
                         controller: otherController,
-                        decoration:
-                        InputDecoration(labelText: "その他（直接入力）"),
+                        decoration: InputDecoration(labelText: "その他（直接入力）"),
                         onChanged: (text) {
                           controller.text = text;
                         },
@@ -328,7 +326,10 @@ class _AddPartPageState extends State<AddPartPage> {
         ),
         if (unit != null) ...[
           const SizedBox(width: 8),
-          Padding(padding: EdgeInsets.only(left: 10),child: Text(unit),),
+          Padding(
+            padding: EdgeInsets.only(left: 10),
+            child: Text(unit),
+          ),
         ]
       ],
     );
@@ -451,97 +452,96 @@ class _AddPartPageState extends State<AddPartPage> {
       body: _categories.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // ===== メインカテゴリ =====
-            DropdownButtonFormField<String>(
-              decoration: const InputDecoration(labelText: "カテゴリ"),
-              items: _categories.entries
-                  .map((entry) => DropdownMenuItem(
-                value: entry.key,
-                child: Text(entry.value["name"] ?? entry.key),
-              ))
-                  .toList(),
-              initialValue: _selectedCategory,
-              onChanged: (value) {
-                setState(() {
-                  _selectedCategory = value;
-                  _selectedSubcategory = null;
-                  _paramControllers.clear();
-                });
-              },
-            ),
+              key: _formKey,
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  // ===== メインカテゴリ =====
+                  DropdownButtonFormField<String>(
+                    decoration: const InputDecoration(labelText: "カテゴリ"),
+                    items: _categories.entries
+                        .map((entry) => DropdownMenuItem(
+                              value: entry.key,
+                              child: Text(entry.value["name"] ?? entry.key),
+                            ))
+                        .toList(),
+                    initialValue: _selectedCategory,
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedCategory = value;
+                        _selectedSubcategory = null;
+                        _paramControllers.clear();
+                      });
+                    },
+                  ),
 
-            // ===== サブカテゴリ（存在する場合のみ） =====
-            if (_selectedCategory != null &&
-                _categories[_selectedCategory]?["subcategories"] != null)
-              DropdownButtonFormField<String>(
-                decoration: const InputDecoration(labelText: "サブカテゴリ"),
-                items: (_categories[_selectedCategory]!["subcategories"]
-                as Map<String, dynamic>)
-                    .entries
-                    .map((entry) => DropdownMenuItem(
-                  value: entry.key,
-                  child: Text(entry.value["name"] ?? entry.key),
-                ))
-                    .toList(),
-                initialValue: _selectedSubcategory,
-                onChanged: (value) {
-                  setState(() {
-                    _selectedSubcategory = value;
-                    _paramControllers.clear();
-                  });
-                },
+                  // ===== サブカテゴリ（存在する場合のみ） =====
+                  if (_selectedCategory != null &&
+                      _categories[_selectedCategory]?["subcategories"] != null)
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(labelText: "サブカテゴリ"),
+                      items: (_categories[_selectedCategory]!["subcategories"]
+                              as Map<String, dynamic>)
+                          .entries
+                          .map((entry) => DropdownMenuItem(
+                                value: entry.key,
+                                child: Text(entry.value["name"] ?? entry.key),
+                              ))
+                          .toList(),
+                      initialValue: _selectedSubcategory,
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedSubcategory = value;
+                          _paramControllers.clear();
+                        });
+                      },
+                    ),
+
+                  // ===== 共通フィールド =====
+                  TextFormField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(labelText: "部品名"),
+                    validator: (v) => v == null || v.isEmpty ? "必須項目です" : null,
+                  ),
+                  TextFormField(
+                      controller: _codeController,
+                      decoration: const InputDecoration(labelText: "型番")),
+                  TextFormField(
+                    controller: _stockController,
+                    decoration: const InputDecoration(labelText: "在庫数"),
+                    keyboardType: TextInputType.number,
+                  ),
+                  TextFormField(
+                      controller: _locationController,
+                      decoration: const InputDecoration(labelText: "保管場所")),
+                  TextFormField(
+                      controller: _datasheetUrlController,
+                      decoration:
+                          const InputDecoration(labelText: "データシートURL")),
+                  TextFormField(
+                      controller: _buyUrlController,
+                      decoration: const InputDecoration(labelText: "購入先URL")),
+
+                  const SizedBox(height: 20),
+
+                  // ===== カテゴリパラメータ =====
+                  if (_selectedCategory != null) ...[
+                    const Divider(),
+                    Text("カテゴリパラメータ",
+                        style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 10),
+                    ..._buildCategoryParams(),
+                  ],
+
+                  const SizedBox(height: 20),
+                  ElevatedButton.icon(
+                    onPressed: _savePart,
+                    icon: const Icon(Icons.save),
+                    label: const Text("登録"),
+                  ),
+                ],
               ),
-
-            // ===== 共通フィールド =====
-            TextFormField(
-              controller: _nameController,
-              decoration: const InputDecoration(labelText: "部品名"),
-              validator: (v) => v == null || v.isEmpty ? "必須項目です" : null,
             ),
-            TextFormField(
-                controller: _codeController,
-                decoration: const InputDecoration(labelText: "型番")),
-            TextFormField(
-              controller: _stockController,
-              decoration: const InputDecoration(labelText: "在庫数"),
-              keyboardType: TextInputType.number,
-            ),
-            TextFormField(
-                controller: _locationController,
-                decoration: const InputDecoration(labelText: "保管場所")),
-            TextFormField(
-                controller: _datasheetUrlController,
-                decoration:
-                const InputDecoration(labelText: "データシートURL")),
-            TextFormField(
-                controller: _buyUrlController,
-                decoration:
-                const InputDecoration(labelText: "購入先URL")),
-
-            const SizedBox(height: 20),
-
-            // ===== カテゴリパラメータ =====
-            if (_selectedCategory != null) ...[
-              const Divider(),
-              Text("カテゴリパラメータ",
-                  style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 10),
-              ..._buildCategoryParams(),
-            ],
-
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: _savePart,
-              icon: const Icon(Icons.save),
-              label: const Text("登録"),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

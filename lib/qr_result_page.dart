@@ -29,7 +29,7 @@ class _QrResultPageState extends State<QrResultPage> {
     }
 
     final result = await (db.select(db.parts)
-      ..where((tbl) => tbl.id.equals(id)))
+          ..where((tbl) => tbl.id.equals(id)))
         .getSingleOrNull();
 
     setState(() {
@@ -79,7 +79,7 @@ class _QrResultPageState extends State<QrResultPage> {
               onPressed: () async {
                 final db = AppDatabase();
                 await (db.update(db.parts)
-                  ..where((tbl) => tbl.id.equals(part!.id)))
+                      ..where((tbl) => tbl.id.equals(part!.id)))
                     .write(PartsCompanion(stock: drift.Value(part!.stock + 1)));
                 _loadPart();
               },
