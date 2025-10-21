@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:linkwell/linkwell.dart';
 import 'package:stockanize/db/parts.dart';
+import 'package:stockanize/edit_page.dart';
 import 'package:stockanize/qr_label.dart';
 
 import 'db/database.dart';
@@ -15,6 +16,8 @@ class PartsListPage extends StatefulWidget {
 
 class _PartsListPageState extends State<PartsListPage> {
   //List<Part>? _lastParts; // 最後に有効だったデータを保持する
+
+  final db = AppDatabase.instance;
 
   @override
   Widget build(BuildContext context) {
@@ -126,7 +129,7 @@ class _PartsListPageState extends State<PartsListPage> {
                         MaterialPageRoute(
                           builder: (_) => HeroListItemPage(
                             part: part,
-                            heroTag: heroTag, index: index, // 同じタグを渡す
+                            heroTag: heroTag, index: index, db: db, // 同じタグを渡す
                           ),
                         ),
                       );
@@ -147,30 +150,101 @@ class _PartsListPageState extends State<PartsListPage> {
   }
 }
 
-class HeroListItemPage extends StatelessWidget {
+class HeroListItemPage extends StatefulWidget {
   final Part part;
+
   final int index;
 
   final dynamic heroTag;
+
+  final AppDatabase db;
+
+  //late final Part part;
+  //late final int index;
+  //late final AppDatabase db;
+
   const HeroListItemPage(
       {super.key,
       required this.part,
       required this.index,
-      required this.heroTag});
+      required this.heroTag,
+      required this.db});
+
+  @override
+  State<HeroListItemPage> createState() => _HeroListItemPageState();
+}
+
+class _HeroListItemPageState extends State<HeroListItemPage> {
+  late final Stream<List<Part>> _partsStream;
+  @override
+  void initState() {
+    super.initState();
+
+    // ① partsテーブルの変更を監視
+    _partsStream = widget.db.select(widget.db.parts).watch();
+  }
+
+  //final dynamic heroTag;
+  late var part = widget.part;
+
+  List<Part> _parts = [];
+  bool _loading = true;
+
+  /// ① 明示的に一覧を取得して state を更新する（最も単純）
+  Future<void> _reloadParts() async {
+    setState(() => _loading = true);
+    try {
+      // Drift の生の select を使うパターン
+      final list = await widget.db.select(widget.db.parts).get();
+      if (!mounted) return;
+      setState(() {
+        _parts = list;
+      });
+    } catch (e, st) {
+      debugPrint('reloadParts error: $e\n$st');
+      // 必要ならエラーハンドリング
+    } finally {
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final metadata = part.metadata;
 
     return Scaffold(
-      appBar: AppBar(title: Text(part.name)),
+      appBar: AppBar(
+        title: Text(part.name),
+        actions: [
+          IconButton(
+              onPressed: () async {
+                final result = await Navigator.of(context).push(
+                  MaterialPageRoute(
+                      builder: (context) => EditPartPage(
+                            db: widget.db,
+                            part: part,
+                          )),
+                );
+
+                if (result != null && mounted) {
+                  setState(() {
+                    debugPrint(
+                        '  received id:${result.id} name:${result.name} code:${result.code} location:${result.location} stock:${result.stock}');
+                    part = result;
+                  });
+                }
+              },
+              icon: Icon(Icons.edit))
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: SingleChildScrollView(
           child: Column(
             children: [
               Hero(
-                tag: heroTag, //"hero_list_item_$index",
+                tag: widget.heroTag, //"hero_list_item_$index",
                 child: Container(
                   width: double.infinity,
                   height: 250,
@@ -237,82 +311,6 @@ class HeroListItemPage extends StatelessWidget {
       ),
     );
   }
-
-  /*Widget _buildInfoRow(String label, dynamic value, {double indent = 0}) {
-    if (value is Map<String, dynamic>) {
-      return Padding(
-        padding: EdgeInsets.only(left: indent, top: 4, bottom: 4),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-            ...value.entries
-                .map((e) => _buildInfoRow(e.key, e.value, indent: indent + 16)),
-          ],
-        ),
-      );
-    } else {
-      return Padding(
-        padding: EdgeInsets.only(left: indent, top: 4, bottom: 4),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 100,
-              child: Text(label,
-                  style: const TextStyle(fontWeight: FontWeight.bold)),
-            ),
-            Expanded(child: Text(value?.toString() ?? "")),
-          ],
-        ),
-      );
-    }
-  }*/
-  /*Widget _buildInfoRow(String label, dynamic value, {double indent = 0}) {
-    if (value is Map) {
-      // Map<String, dynamic> に限定せず
-      return Padding(
-        padding: EdgeInsets.only(left: indent, top: 4, bottom: 4),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-            ...value.entries.map((e) =>
-                _buildInfoRow(e.key.toString(), e.value, indent: indent + 16)),
-          ],
-        ),
-      );
-    } else if (value is List) {
-      return Padding(
-        padding: EdgeInsets.only(left: indent, top: 4, bottom: 4),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-            ...value.asMap().entries.map(
-                  (e) =>
-                      _buildInfoRow("[${e.key}]", e.value, indent: indent + 16),
-                ),
-          ],
-        ),
-      );
-    } else {
-      return Padding(
-        padding: EdgeInsets.only(left: indent, top: 4, bottom: 4),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 100,
-              child: Text(label,
-                  style: const TextStyle(fontWeight: FontWeight.bold)),
-            ),
-            Expanded(child: Text(value?.toString() ?? "")),
-          ],
-        ),
-      );
-    }
-  }*/
 
   Widget _buildInfoRow(String key, dynamic value, {double indent = 0}) {
     // カテゴリごとのスキーマ定義を取得（なければ空マップ）

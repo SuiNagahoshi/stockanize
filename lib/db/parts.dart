@@ -46,6 +46,11 @@ extension PartDao on AppDatabase {
       (select(parts)..where((tbl) => tbl.id.equals(id))).getSingleOrNull();
 
   Future<void> updatePart(Part part) => update(parts).replace(part);
+  //Future<void> updatePart(PartsCompanion companion) async {
+  //  final id = companion.id.value;
+  //
+  //  await (update(parts)..where((t) => t.id.equals(id))).write(companion);
+  //}
 
   Future<int> deletePart(int id) =>
       (delete(parts)..where((tbl) => tbl.id.equals(id))).go();

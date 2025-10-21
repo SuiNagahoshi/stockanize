@@ -2,19 +2,22 @@ import 'dart:convert';
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
+// ここで Part の型が生成されている前提
 import 'package:stockanize/db/parts.dart';
-
+import 'package:stockanize/parts_list_page.dart';
 import 'db/database.dart';
 
-class AddPartPage extends StatefulWidget {
+class EditPartPage extends StatefulWidget {
   final AppDatabase db;
-  const AddPartPage({super.key, required this.db});
+  final Part? part; // ← ここが渡される Part
+
+  const EditPartPage({super.key, required this.db, this.part});
 
   @override
-  State<AddPartPage> createState() => _AddPartPageState();
+  State<EditPartPage> createState() => _EditPartPageState();
 }
 
-class _AddPartPageState extends State<AddPartPage> {
+class _EditPartPageState extends State<EditPartPage> {
   final _formKey = GlobalKey<FormState>();
 
   // 共通フィールド
@@ -29,24 +32,27 @@ class _AddPartPageState extends State<AddPartPage> {
   Map<String, dynamic> _categories = {};
   String? _selectedCategory;
   String? _selectedSubcategory;
-  String? _selectedImplementation; // 選択中の実装形式
+  String? _selectedImplementation;
   final Map<String, TextEditingController> _paramControllers = {};
 
   @override
   void initState() {
     super.initState();
-    _loadCategories();
+    // カテゴリを読み込み、読み込み完了後に part の初期化を行う
+    _loadCategories().then((_) {
+      if (widget.part != null) {
+        _applyPartToControllers(widget.part!);
+      }
+    });
   }
 
   @override
   void dispose() {
-    // 動的に作ったコントローラを全部 dispose
     for (final c in _paramControllers.values) {
       c.dispose();
     }
     _paramControllers.clear();
 
-    // 既存コントローラも dispose
     _nameController.dispose();
     _codeController.dispose();
     _stockController.dispose();
@@ -57,21 +63,12 @@ class _AddPartPageState extends State<AddPartPage> {
     super.dispose();
   }
 
-  // カテゴリ読み込み（少し堅牢にキャスト）
   Future<void> _loadCategories() async {
     final jsonStr = await rootBundle.loadString('assets/categories.json');
     final dynamic decoded = jsonDecode(jsonStr);
     if (decoded is Map) {
-      final cats = Map<String, dynamic>.from(decoded);
-
-      // カテゴリごとに unit 幅を計算
-      final unitWidths = <String, double>{};
-      cats.forEach((category, schema) {
-        unitWidths[category] = _calcMaxUnitWidth(category, schema);
-      });
-
       setState(() {
-        _categories = cats;
+        _categories = Map<String, dynamic>.from(decoded);
       });
     } else {
       setState(() {
@@ -80,44 +77,39 @@ class _AddPartPageState extends State<AddPartPage> {
     }
   }
 
-  // --- カテゴリ変更時の処理: 既存コントローラは dispose してから新規作成 ---
+  /// Part を受け取り UI の初期値としてセットする
+  void _applyPartToControllers(Part part) {
+    // category は UI 上のカテゴリ選択に反映
+    setState(() {
+      _selectedCategory = part.category;
+      _nameController.text = part.name;
+      _codeController.text = part.code ?? "";
+      _stockController.text = part.stock?.toString() ?? "";
+      _locationController.text = part.location ?? "";
+      _datasheetUrlController.text = part.datasheetUrl ?? "";
+      _buyUrlController.text = part.buyUrl ?? "";
 
-  double _calcMaxUnitWidth(String category, Map<String, dynamic> schema) {
-    final units = <String>[];
+      // metadata は Map<String, dynamic>?（converter により）
+      final meta = part.metadata;
+      if (meta != null) {
+        // controller が未作成のキーもあるため、ここで作成して値を入れる
+        meta.forEach((k, v) {
+          final s = v == null ? "" : v.toString();
+          // すでにコントローラがある場合はテキストを設定、なければ新規作成
+          final controller =
+              _paramControllers.putIfAbsent(k, () => TextEditingController());
+          controller.text = s;
+        });
 
-    void collectUnits(Map<String, dynamic> map) {
-      map.forEach((key, def) {
-        if (def is Map<String, dynamic>) {
-          if (def['unit'] != null) {
-            units.add(def['unit'].toString());
-          }
-          def.forEach((k, v) {
-            if (v is Map<String, dynamic>) {
-              collectUnits({k: v});
-            }
-          });
+        // もし implementation に値があれば反映しておく
+        if (meta.containsKey("implementation")) {
+          _selectedImplementation = meta["implementation"]?.toString();
         }
-      });
-    }
-
-    collectUnits(schema);
-
-    final textStyle = const TextStyle(color: Colors.grey);
-    final tp = TextPainter(
-        textDirection: TextDirection.ltr, textAlign: TextAlign.left);
-
-    double maxWidth = 0;
-    for (final u in units) {
-      tp.text = TextSpan(text: u, style: textStyle);
-      tp.layout();
-      if (tp.width > maxWidth) {
-        maxWidth = tp.width + 10;
       }
-    }
-    return maxWidth;
+    });
   }
 
-  /// スキーマに準拠してパラメータを構築する
+  // 以降は既存実装（必要に応じてそのまま使えるよう調整）
   List<Widget> _buildCategoryParams() {
     final category = _categories[_selectedCategory];
     if (category == null) return [];
@@ -135,7 +127,6 @@ class _AddPartPageState extends State<AddPartPage> {
       paramMap = Map<String, dynamic>.from(category);
     }
 
-    // "name" や "subcategories" はパラメータではない
     paramMap.remove("name");
     paramMap.remove("subcategories");
 
@@ -156,10 +147,6 @@ class _AddPartPageState extends State<AddPartPage> {
     return widgets;
   }
 
-  /// フォーム行を描画（TextField の右に unit を固定表示）
-  /// keyName はドット区切りキー (例: "size.depth")
-  /// 通常のテキスト/ドロップダウン行の描画関数（既存のものを維持）
-  /// key: dotted key, value: Map定義 (label/unit/option/…)
   Widget _buildParamRow(String key, dynamic param) {
     if (param == null) return const SizedBox.shrink();
 
@@ -170,9 +157,7 @@ class _AddPartPageState extends State<AddPartPage> {
         ? param["unit"] as String?
         : null;
 
-    // --------------------------------------------
-    // ① 実装形式 (implementation)
-    // --------------------------------------------
+    // implementation (選択肢)
     if (key == "implementation" && param is Map && param["option"] is List) {
       final options = List<String>.from(param["option"]);
       final currentValue = _selectedImplementation;
@@ -189,14 +174,14 @@ class _AddPartPageState extends State<AddPartPage> {
         onChanged: (val) {
           setState(() {
             _selectedImplementation = val;
+            // metadata 用 controller も更新しておく
+            _paramControllers[key]?.text = val ?? "";
           });
         },
       );
     }
 
-    // --------------------------------------------
-    // ② パッケージ (implementation依存)
-    // --------------------------------------------
+    // package (implementation に依存するドロップダウン)
     if (key == "package" && param is Map) {
       final implOptions = param["optionByImplementation"];
       if (implOptions is Map<String, dynamic>) {
@@ -226,9 +211,7 @@ class _AddPartPageState extends State<AddPartPage> {
       }
     }
 
-    // --------------------------------------------
-    // ③ size のような label + 子要素を持つ構造
-    // --------------------------------------------
+    // size のような子要素を持つ構造
     if (param is Map && param.containsKey("label")) {
       final subParams = param.entries
           .where((e) => e.key != "label" && e.key != "unit" && e.value is Map)
@@ -246,25 +229,18 @@ class _AddPartPageState extends State<AddPartPage> {
       }
     }
 
-    // --------------------------------------------
-    // ④ 通常のパラメータ処理
-    // optionがある → ドロップダウン
-    // ない → テキストフィールド
-    // --------------------------------------------
+    // 通常のパラメータ処理
     final controller =
         _paramControllers.putIfAbsent(key, () => TextEditingController());
 
     if (param is Map && param.containsKey("option")) {
       List<String> options = List<String>.from(param["option"]);
 
-      // 「その他」を追加（重複防止）
       if (!options.contains("その他")) options.add("その他");
 
-      // 現在の選択値
       String? selectedOption =
           controller.text.isNotEmpty ? controller.text : null;
 
-      // 「その他」入力欄用
       final otherController = TextEditingController();
 
       return StatefulBuilder(
@@ -327,7 +303,7 @@ class _AddPartPageState extends State<AddPartPage> {
         if (unit != null) ...[
           const SizedBox(width: 8),
           Padding(
-            padding: EdgeInsets.only(left: 10),
+            padding: const EdgeInsets.only(left: 10),
             child: Text(unit),
           ),
         ]
@@ -336,17 +312,8 @@ class _AddPartPageState extends State<AddPartPage> {
   }
 
   Future<void> _savePart() async {
-    debugPrint("=== _savePart START ===");
-    if (!_formKey.currentState!.validate()) {
-      debugPrint("form validation failed");
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
 
-    debugPrint("selected category: $_selectedCategory");
-    debugPrint("name: ${_nameController.text}");
-    debugPrint("metadata controllers: $_paramControllers");
-
-    // metadata を Map<String, dynamic> で作る（string値のみ格納）
     final Map<String, dynamic> metadata = {};
     _paramControllers.forEach((key, controller) {
       final text = controller.text.trim();
@@ -355,72 +322,67 @@ class _AddPartPageState extends State<AddPartPage> {
       }
     });
 
-    debugPrint("metadata to save: $metadata");
-
-    // 各フィールドをトリムして、空なら Value.absent() にする（nullable列向け）
-    final nameValue = _nameController.text.trim();
-    final codeText = _codeController.text.trim();
-    final stockText = _stockController.text.trim();
-    final locationText = _locationController.text.trim();
-    final datasheetText = _datasheetUrlController.text.trim();
-    final buyUrlText = _buyUrlController.text.trim();
-
     final companion = PartsCompanion(
-      // category は nullable なので absent を使うパターン
       category: _selectedCategory != null
           ? Value(_selectedCategory!)
           : const Value.absent(),
-
-      // name は non-null（テーブル定義に合わせて必須扱い） -> ただし Value で渡す
-      name: Value(nameValue),
-
-      // optional fields
-      code: codeText.isNotEmpty ? Value(codeText) : const Value.absent(),
-      stock: stockText.isNotEmpty
-          ? Value(int.tryParse(stockText) ?? 0)
+      name: Value(_nameController.text.trim()),
+      code: _codeController.text.isNotEmpty
+          ? Value(_codeController.text)
           : const Value.absent(),
-      location:
-          locationText.isNotEmpty ? Value(locationText) : const Value.absent(),
-      datasheetUrl: datasheetText.isNotEmpty
-          ? Value(datasheetText)
+      stock: _stockController.text.isNotEmpty
+          ? Value(int.tryParse(_stockController.text) ?? 0)
           : const Value.absent(),
-      buyUrl: buyUrlText.isNotEmpty ? Value(buyUrlText) : const Value.absent(),
-
-      // metadata 列は non-null（現状）を想定。空でも {} を渡す。
+      location: _locationController.text.isNotEmpty
+          ? Value(_locationController.text)
+          : const Value.absent(),
+      datasheetUrl: _datasheetUrlController.text.isNotEmpty
+          ? Value(_datasheetUrlController.text)
+          : const Value.absent(),
+      buyUrl: _buyUrlController.text.isNotEmpty
+          ? Value(_buyUrlController.text)
+          : const Value.absent(),
       metadata: metadata.isNotEmpty ? Value(metadata) : const Value.absent(),
     );
 
-    debugPrint("companion: $companion");
-
     try {
-      await widget.db.insertPart(companion);
-      debugPrint("insert: $companion");
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("部品を登録しました")),
+      if (widget.part == null) {
+        // --- 新規追加 ---
+        await widget.db.insertPart(companion);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("部品を登録しました")),
+        );
+      } else {
+        // --- 既存更新 ---
+        await (widget.db.update(widget.db.parts)
+              ..where((tbl) => tbl.id.equals(widget.part!.id)))
+            .write(companion);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("部品を更新しました")),
+        );
+      }
+      final result = widget.part!.copyWith(
+        category: Value(_selectedCategory),
+        name: _nameController.text,
+        code: Value(_codeController.text),
+        stock: int.tryParse(_stockController.text) ?? 0,
+        location: Value(_locationController.text),
+        datasheetUrl: Value(_datasheetUrlController.text),
+        buyUrl: Value(_buyUrlController.text),
+        metadata: Value(metadata),
       );
-      debugPrint("snackbar");
-
-      // 入力フォームをリセット（カテゴリも含めて）
-      setState(() {
-        _selectedCategory = null; // カテゴリもリセット
-        _nameController.clear();
-        _codeController.clear();
-        _stockController.clear();
-        _locationController.clear();
-        _datasheetUrlController.clear();
-        _buyUrlController.clear();
-        for (final controller in _paramControllers.values) {
-          controller.clear();
-        }
-      });
+      //Navigator.push(context, MaterialPageRoute(builder: (context) => HeroListItemPage(part: widget.part, index: index, heroTag: heroTag, db: db)))
+      debugPrint(
+          'PartEdit: pop returning -> id:${result.id} name:${result.name} code:${result.code} location:${result.location} stock:${result.stock}');
+      Navigator.of(context).pop(result);
     } catch (e, st) {
-      debugPrint('insertPart error: $e\n$st');
+      debugPrint('savePart error: $e\n$st');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('保存に失敗しました: $e')),
         );
-        Navigator.of(context).pop(false); // 失敗したら false を返す
       }
     }
   }
@@ -428,7 +390,7 @@ class _AddPartPageState extends State<AddPartPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("部品を追加")),
+      appBar: AppBar(title: Text(widget.part == null ? "部品を追加" : "部品を編集")),
       body: _categories.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : Form(
@@ -436,7 +398,6 @@ class _AddPartPageState extends State<AddPartPage> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  // ===== メインカテゴリ =====
                   DropdownButtonFormField<String>(
                     decoration: const InputDecoration(labelText: "カテゴリ"),
                     items: _categories.entries
@@ -450,12 +411,16 @@ class _AddPartPageState extends State<AddPartPage> {
                       setState(() {
                         _selectedCategory = value;
                         _selectedSubcategory = null;
+                        // カテゴリ変更時は param controllers を一旦クリアして再生成する
+                        for (final c in _paramControllers.values) {
+                          c.dispose();
+                        }
                         _paramControllers.clear();
                       });
                     },
                   ),
 
-                  // ===== サブカテゴリ（存在する場合のみ） =====
+                  // サブカテゴリ（あれば）
                   if (_selectedCategory != null &&
                       _categories[_selectedCategory]?["subcategories"] != null)
                     DropdownButtonFormField<String>(
@@ -472,12 +437,15 @@ class _AddPartPageState extends State<AddPartPage> {
                       onChanged: (value) {
                         setState(() {
                           _selectedSubcategory = value;
+                          for (final c in _paramControllers.values) {
+                            c.dispose();
+                          }
                           _paramControllers.clear();
                         });
                       },
                     ),
 
-                  // ===== 共通フィールド =====
+                  // 共通フィールド
                   TextFormField(
                     controller: _nameController,
                     decoration: const InputDecoration(labelText: "部品名"),
@@ -504,7 +472,7 @@ class _AddPartPageState extends State<AddPartPage> {
 
                   const SizedBox(height: 20),
 
-                  // ===== カテゴリパラメータ =====
+                  // カテゴリパラメータ
                   if (_selectedCategory != null) ...[
                     const Divider(),
                     Text("カテゴリパラメータ",
@@ -517,7 +485,7 @@ class _AddPartPageState extends State<AddPartPage> {
                   ElevatedButton.icon(
                     onPressed: _savePart,
                     icon: const Icon(Icons.save),
-                    label: const Text("登録"),
+                    label: Text(widget.part == null ? "登録" : "更新"),
                   ),
                 ],
               ),

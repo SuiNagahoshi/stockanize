@@ -42,10 +42,13 @@ dependencies:
   path_provider: ^2.1.5
   path: ^1.9.1
   linkwell: ^2.0.6
-  build_runner: 2.7.2
+  build_runner: ^2.10.0
   qr_flutter: ^4.1.0
   mobile_scanner: ^7.1.2
   share_plus: ^12.0.0
+  permission_handler: ^12.0.1
+  file_picker: ^10.3.3
+  image_gallery_saver_plus: ^4.0.1
 
 dev_dependencies:
   flutter_test:

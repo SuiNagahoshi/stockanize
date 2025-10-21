@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:stockanize/parts_list_page.dart';
 
 import 'db/database.dart';
+import 'edit_page.dart';
 
 class QrScanPage extends StatefulWidget {
   @override
@@ -59,8 +60,11 @@ class _QrScanPageState extends State<QrScanPage> {
         //MaterialPageRoute(builder: (_) => QrResultPage(partId: partId.toString())),
         MaterialPageRoute(
             builder: (context) =>
-                HeroListItemPage(part: part, index: index, heroTag: heroTag)));
-
+                //HeroListItemPage(part: part, index: index, heroTag: heroTag)));
+                EditPartPage(
+                  db: db,
+                  part: part,
+                )));
     // 戻ってきたらスキャンを再開
     _resumeScanning();
   }
