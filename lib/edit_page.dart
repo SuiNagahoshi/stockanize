@@ -82,6 +82,7 @@ class _EditPartPageState extends State<EditPartPage> {
     // category は UI 上のカテゴリ選択に反映
     setState(() {
       _selectedCategory = part.category;
+      _selectedSubcategory = part.subcategory ?? "";
       _nameController.text = part.name;
       _codeController.text = part.code ?? "";
       _stockController.text = part.stock?.toString() ?? "";
@@ -326,6 +327,9 @@ class _EditPartPageState extends State<EditPartPage> {
       category: _selectedCategory != null
           ? Value(_selectedCategory!)
           : const Value.absent(),
+      subcategory: _selectedSubcategory != null
+          ? Value(_selectedSubcategory!)
+          : const Value.absent(),
       name: Value(_nameController.text.trim()),
       code: _codeController.text.isNotEmpty
           ? Value(_codeController.text)
@@ -365,6 +369,7 @@ class _EditPartPageState extends State<EditPartPage> {
       }
       final result = widget.part!.copyWith(
         category: Value(_selectedCategory),
+        subcategory: Value(_selectedSubcategory),
         name: _nameController.text,
         code: Value(_codeController.text),
         stock: int.tryParse(_stockController.text) ?? 0,

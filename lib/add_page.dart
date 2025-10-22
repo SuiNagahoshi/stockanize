@@ -269,45 +269,63 @@ class _AddPartPageState extends State<AddPartPage> {
 
       return StatefulBuilder(
         builder: (context, setState) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              DropdownButtonFormField<String>(
-                initialValue: selectedOption != "" ? selectedOption : null,
-                decoration: InputDecoration(labelText: param["label"]),
-                items: options.map((opt) {
-                  return DropdownMenuItem<String>(
-                    value: opt,
-                    child: Text(opt),
-                  );
-                }).toList(),
-                onChanged: (newValue) {
-                  setState(() {
-                    selectedOption = newValue;
-                    controller.text = newValue ?? "";
-                    if (newValue != "その他") {
-                      otherController.clear();
-                    }
-                  });
-                },
-              ),
-              if (selectedOption == "その他") ...[
-                const SizedBox(height: 6),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: otherController,
-                        decoration: InputDecoration(labelText: "その他（直接入力）"),
-                        onChanged: (text) {
-                          controller.text = text;
-                        },
-                      ),
+                    DropdownButtonFormField<String>(
+                      initialValue:
+                          selectedOption != "" ? selectedOption : null,
+                      decoration: InputDecoration(labelText: param["label"]),
+                      items: options.map((opt) {
+                        return DropdownMenuItem<String>(
+                          value: opt,
+                          child: Text(opt),
+                        );
+                      }).toList(),
+                      onChanged: (newValue) {
+                        setState(() {
+                          selectedOption = newValue;
+                          controller.text = newValue ?? "";
+                          if (newValue != "その他") {
+                            otherController.clear();
+                          }
+                        });
+                      },
                     ),
+                    if (selectedOption == "その他") ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: otherController,
+                              decoration:
+                                  InputDecoration(labelText: "その他（直接入力）"),
+                              onChanged: (text) {
+                                controller.text = text;
+                              },
+                            ),
+                          ),
+                        ],
+                      )
+                    ],
                   ],
+                ),
+              ),
+              if (unit != null) ...[
+                const SizedBox(
+                  width: 8,
+                ),
+                Padding(
+                  padding: EdgeInsets.only(left: 10),
+                  child: Text(unit),
                 )
-              ],
+              ]
             ],
           );
         },
@@ -343,6 +361,7 @@ class _AddPartPageState extends State<AddPartPage> {
     }
 
     debugPrint("selected category: $_selectedCategory");
+    debugPrint("selected subcategory: $_selectedSubcategory");
     debugPrint("name: ${_nameController.text}");
     debugPrint("metadata controllers: $_paramControllers");
 
@@ -369,6 +388,10 @@ class _AddPartPageState extends State<AddPartPage> {
       // category は nullable なので absent を使うパターン
       category: _selectedCategory != null
           ? Value(_selectedCategory!)
+          : const Value.absent(),
+
+      subcategory: _selectedSubcategory != null
+          ? Value(_selectedSubcategory!)
           : const Value.absent(),
 
       // name は non-null（テーブル定義に合わせて必須扱い） -> ただし Value で渡す
@@ -404,6 +427,7 @@ class _AddPartPageState extends State<AddPartPage> {
       // 入力フォームをリセット（カテゴリも含めて）
       setState(() {
         _selectedCategory = null; // カテゴリもリセット
+        _selectedSubcategory = null;
         _nameController.clear();
         _codeController.clear();
         _stockController.clear();
