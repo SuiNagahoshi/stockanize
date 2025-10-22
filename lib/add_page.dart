@@ -538,11 +538,13 @@ class _AddPartPageState extends State<AddPartPage> {
                   ],
 
                   const SizedBox(height: 20),
-                  ElevatedButton.icon(
-                    onPressed: _savePart,
-                    icon: const Icon(Icons.save),
-                    label: const Text("登録"),
-                  ),
+                  SafeArea(
+                      child: ElevatedButton.icon(
+                        onPressed: _savePart,
+                        icon: const Icon(Icons.save),
+                        label: const Text("登録"),
+                      ),
+                  )
                 ],
               ),
             ),

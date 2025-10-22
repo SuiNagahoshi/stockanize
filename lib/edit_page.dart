@@ -487,11 +487,14 @@ class _EditPartPageState extends State<EditPartPage> {
                   ],
 
                   const SizedBox(height: 20),
-                  ElevatedButton.icon(
-                    onPressed: _savePart,
-                    icon: const Icon(Icons.save),
-                    label: Text(widget.part == null ? "登録" : "更新"),
-                  ),
+                  SafeArea(
+                    child: ElevatedButton.icon(
+                      onPressed: _savePart,
+                      icon: const Icon(Icons.save),
+                      label: Text(widget.part == null ? "登録" : "更新"),
+                    ),
+                  )
+
                 ],
               ),
             ),

@@ -313,6 +313,7 @@ class _HeroListItemPageState extends State<HeroListItemPage> {
   }
 
   Widget _buildInfoRow(String key, dynamic value, {double indent = 0}) {
+
     // カテゴリごとのスキーマ定義を取得（なければ空マップ）
     final category = (part.category ?? '').toString();
     final Map<String, dynamic> categorySchema =
@@ -324,14 +325,16 @@ class _HeroListItemPageState extends State<HeroListItemPage> {
     Widget buildRec(String curKey, dynamic curValue,
         Map<String, dynamic> curSchema, double curIndent) {
       // スキーマ定義を解決するヘルパ（ドット区切りキーにも対応）
+      // ----- 既存の resolveDef を置き換える（この関数だけ差し替えてください） -----
       Map<String, dynamic>? resolveDef(Map<String, dynamic> s, String k) {
+        // まずは既存の挙動（そのスキーマコンテキスト内を探す）
         if (s.containsKey(k)) {
           final v = s[k];
           if (v is Map<String, dynamic>) return v;
           if (v is Map) return Map<String, dynamic>.from(v);
         }
 
-        // ドット区切り ("size.depth") の場合に下っていく
+        // ドット区切り ("size.depth") の場合に下っていく（既存ロジック）
         if (k.contains('.')) {
           final parts = k.split('.');
           Map<String, dynamic>? cs = s;
@@ -347,10 +350,71 @@ class _HeroListItemPageState extends State<HeroListItemPage> {
           return cs;
         }
 
+        // ----------------- ここから追加の安全なフォールバック探索 -----------------
+        // 既存の s（curSchema）で見つからなかった場合に限り、
+        // part.metadata のルート全体を再帰検索して該当定義を探す。
+        // （これにより、スキーマ定義が別の場所にあるケースに対応）
+        Map<String, dynamic>? findInMetadata(Map<dynamic, dynamic>? node, String key) {
+          if (node == null) return null;
+          try {
+            for (final entry in node.entries) {
+              final k0 = entry.key;
+              final v0 = entry.value;
+              // もしここが Map で直接キーを持っていれば返す
+              if (v0 is Map && v0.containsKey(key)) {
+                final found = v0[key];
+                if (found is Map<String, dynamic>) return found;
+                if (found is Map) return Map<String, dynamic>.from(found);
+              }
+              // 再帰探索（深さ探索）
+              if (v0 is Map) {
+                final rec = findInMetadata(v0, key);
+                if (rec != null) return rec;
+              } else if (v0 is List) {
+                for (final item in v0) {
+                  if (item is Map) {
+                    final rec2 = findInMetadata(item, key);
+                    if (rec2 != null) return rec2;
+                  }
+                }
+              }
+            }
+          } catch (_) {
+            // ここでは絶対に例外を投げない（デバッグ時のみログ化しておく）
+            debugPrint('[resolveDef fallback] metadata traversal error for key="$k"');
+          }
+          return null;
+        }
+
+        // part.metadata が Map なら探索する（存在しない場合は何もしない）
+        try {
+          final rootMeta = part.metadata;
+          if (rootMeta is Map) {
+            final found = findInMetadata(rootMeta, k);
+            if (found != null) return found;
+            // また、サブカテゴリ的に 'subcategories' 下にある可能性も探索
+            if (rootMeta!.containsKey('subcategories') && rootMeta['subcategories'] is Map) {
+              final sub = rootMeta['subcategories'] as Map;
+              if (sub.containsKey(k)) {
+                final cand = sub[k];
+                if (cand is Map<String, dynamic>) return cand;
+                if (cand is Map) return Map<String, dynamic>.from(cand);
+              }
+            }
+          }
+        } catch (_) {
+          // 念のため例外を握り潰す（ここで落とさない）
+        }
+
+        // 見つからなければ null を返す（既存のフォールバックへ委ねる形を崩さない）
         return null;
       }
 
+
       final Map<String, dynamic>? def = resolveDef(curSchema, curKey);
+      debugPrint(
+        'key=$curKey, label=${def?['label'] ?? 'null'}, name=${def?['name'] ?? 'null'}, unit=${def?['unit'] ?? 'null'}',
+      );
 
       // label と unit を決定（見つからなければ key をそのままラベルにする）
       String label = curKey;
@@ -440,6 +504,7 @@ class _HeroListItemPageState extends State<HeroListItemPage> {
     } // end buildRec
 
     // 初回はカテゴリスキーマをコンテキストとして渡す
+
     return buildRec(key, value, categorySchema, indent);
   }
 
