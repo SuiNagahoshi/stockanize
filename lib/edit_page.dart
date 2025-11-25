@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 // ここで Part の型が生成されている前提
 import 'package:stockanize/db/parts.dart';
-import 'package:stockanize/parts_list_page.dart';
 import 'db/database.dart';
 
 class EditPartPage extends StatefulWidget {
@@ -85,7 +84,7 @@ class _EditPartPageState extends State<EditPartPage> {
       _selectedSubcategory = part.subcategory ?? "";
       _nameController.text = part.name;
       _codeController.text = part.code ?? "";
-      _stockController.text = part.stock?.toString() ?? "";
+      _stockController.text = part.stock.toString();
       _locationController.text = part.location ?? "";
       _datasheetUrlController.text = part.datasheetUrl ?? "";
       _buyUrlController.text = part.buyUrl ?? "";
@@ -494,7 +493,6 @@ class _EditPartPageState extends State<EditPartPage> {
                       label: Text(widget.part == null ? "登録" : "更新"),
                     ),
                   )
-
                 ],
               ),
             ),

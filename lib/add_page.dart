@@ -178,7 +178,7 @@ class _AddPartPageState extends State<AddPartPage> {
       final currentValue = _selectedImplementation;
 
       final controller =
-      _paramControllers.putIfAbsent(key, () => TextEditingController());
+          _paramControllers.putIfAbsent(key, () => TextEditingController());
       return DropdownButtonFormField<String>(
         decoration: InputDecoration(labelText: label),
         initialValue: currentValue,
@@ -241,7 +241,9 @@ class _AddPartPageState extends State<AddPartPage> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label,),
+            Text(
+              label,
+            ),
             const SizedBox(height: 6),
             ...subParams.map((e) => _buildParamRow(e.key, e.value)),
           ],
@@ -543,11 +545,11 @@ class _AddPartPageState extends State<AddPartPage> {
 
                   const SizedBox(height: 20),
                   SafeArea(
-                      child: ElevatedButton.icon(
-                        onPressed: _savePart,
-                        icon: const Icon(Icons.save),
-                        label: const Text("登録"),
-                      ),
+                    child: ElevatedButton.icon(
+                      onPressed: _savePart,
+                      icon: const Icon(Icons.save),
+                      label: const Text("登録"),
+                    ),
                   )
                 ],
               ),

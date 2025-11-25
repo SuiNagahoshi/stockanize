@@ -192,9 +192,6 @@ class _HeroListItemPageState extends State<HeroListItemPage> {
   //final dynamic heroTag;
   late var part = widget.part;
 
-  List<Part> _parts = [];
-  bool _loading = true;
-
   Future<dynamic> getCategories() async {
     var json = await rootBundle.loadString('assets/categories.json');
     //debugPrint('getcategory\n$json');
@@ -208,7 +205,6 @@ class _HeroListItemPageState extends State<HeroListItemPage> {
     }
   }
 
-  bool _isLoading = false;
   late final categories;
   //_HeroListItemPageState._(this.category);
 
@@ -223,13 +219,11 @@ class _HeroListItemPageState extends State<HeroListItemPage> {
         // 成功したら late フィールドを初期化し、UIを更新
         setState(() {
           categories = data; // late フィールドへの最初の代入
-          _isLoading = false;
         });
       } else {
         // 失敗した場合（Mapでなかった場合）
         setState(() {
           categories = {}; // エラー時の代替（例: 空のMap）で late を初期化
-          _isLoading = false;
         });
         debugPrint('Error: Loaded data is not a Map.');
       }
@@ -237,28 +231,8 @@ class _HeroListItemPageState extends State<HeroListItemPage> {
       // 例外処理（ファイルが見つからないなど）
       setState(() {
         categories = {}; // エラー時の代替で late を初期化
-        _isLoading = false;
       });
       debugPrint('Error loading category: $e');
-    }
-  }
-
-  /// ① 明示的に一覧を取得して state を更新する（最も単純）
-  Future<void> _reloadParts() async {
-    setState(() => _loading = true);
-    try {
-      // Drift の生の select を使うパターン
-      final list = await widget.db.select(widget.db.parts).get();
-      if (!mounted) return;
-      setState(() {
-        _parts = list;
-      });
-    } catch (e, st) {
-      debugPrint('reloadParts error: $e\n$st');
-      // 必要ならエラーハンドリング
-    } finally {
-      if (!mounted) return;
-      setState(() => _loading = false);
     }
   }
 
@@ -324,14 +298,15 @@ class _HeroListItemPageState extends State<HeroListItemPage> {
                   Column(
                     children: [
                       _buildInfoRow(part, part.category ?? "", "型番", part.code),
-                      _buildInfoRow(part, part.category ?? "", "在庫数", part.stock),
-                      _buildInfoRow(part, part.category ?? "", "保管場所", part.location),
+                      _buildInfoRow(
+                          part, part.category ?? "", "在庫数", part.stock),
+                      _buildInfoRow(
+                          part, part.category ?? "", "保管場所", part.location),
                       _buildLinkRow("データシート", part.datasheetUrl),
                       _buildLinkRow("購入先", part.buyUrl),
                       const Divider(),
-                      ...(metadata ?? {})
-                          .entries
-                          .map((e) => _buildInfoRow(part, part.category ?? "", e.key, e.value)),
+                      ...(metadata ?? {}).entries.map((e) => _buildInfoRow(
+                          part, part.category ?? "", e.key, e.value)),
                       const SizedBox(
                         height: 20,
                       ),
@@ -365,6 +340,7 @@ class _HeroListItemPageState extends State<HeroListItemPage> {
       ),
     );
   }
+
   /*
   Widget _buildInfoRow(String key, dynamic value, {double indent = 0}) {
     debugPrint('$key, $value');
@@ -501,10 +477,12 @@ class _HeroListItemPageState extends State<HeroListItemPage> {
   Widget _buildInfoRow(Part part, String category, String key, dynamic value) {
     (String, String) getLabelFromKey(String category, String key) {
       var categoriess = categories;
-      var label = categoriess[category]['subcategories'][part.subcategory][key]['label'];
+      var label = categoriess[category]['subcategories'][part.subcategory][key]
+          ['label'];
 
       return (label.toString(), value.toString());
     }
+
     String label = "";
     String itemValue = "";
 
@@ -531,7 +509,7 @@ class _HeroListItemPageState extends State<HeroListItemPage> {
           SizedBox(
             width: 100,
             child: Text(
-              label, 
+              label,
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
@@ -540,6 +518,7 @@ class _HeroListItemPageState extends State<HeroListItemPage> {
       ),
     );
   }
+
   Widget _buildLinkRow(String label, String? url) {
     if (url == null) return const SizedBox();
     return Padding(

@@ -25,7 +25,6 @@ class $PartsTable extends Parts with TableInfo<$PartsTable, Part> {
       type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _subcategoryMeta =
       const VerificationMeta('subcategory');
-  @override
   late final GeneratedColumn<String> subcategory = GeneratedColumn<String>(
       'subcategory', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
