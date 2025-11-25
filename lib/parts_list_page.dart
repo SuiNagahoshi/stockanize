@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:linkwell/linkwell.dart';
 import 'package:stockanize/db/parts.dart';
 import 'package:stockanize/edit_page.dart';
@@ -182,6 +185,8 @@ class _HeroListItemPageState extends State<HeroListItemPage> {
 
     // ① partsテーブルの変更を監視
     _partsStream = widget.db.select(widget.db.parts).watch();
+
+    _loadCategories();
   }
 
   //final dynamic heroTag;
@@ -189,6 +194,54 @@ class _HeroListItemPageState extends State<HeroListItemPage> {
 
   List<Part> _parts = [];
   bool _loading = true;
+
+  Future<dynamic> getCategories() async {
+    var json = await rootBundle.loadString('assets/categories.json');
+    //debugPrint('getcategory\n$json');
+    var decoded = jsonDecode(json);
+    debugPrint('${decoded.runtimeType}');
+    if (decoded is Map) {
+      debugPrint('yah');
+      return decoded;
+    } else {
+      return;
+    }
+  }
+
+  bool _isLoading = false;
+  late final categories;
+  //_HeroListItemPageState._(this.category);
+
+  // 💡 非同期でデータをロードするメソッド
+  Future<void> _loadCategories() async {
+    try {
+      // getCategory() はグローバルまたは外部で定義された関数として呼び出す
+      var data = await getCategories();
+
+      // データの型判定
+      if (data is Map<String, dynamic>) {
+        // 成功したら late フィールドを初期化し、UIを更新
+        setState(() {
+          categories = data; // late フィールドへの最初の代入
+          _isLoading = false;
+        });
+      } else {
+        // 失敗した場合（Mapでなかった場合）
+        setState(() {
+          categories = {}; // エラー時の代替（例: 空のMap）で late を初期化
+          _isLoading = false;
+        });
+        debugPrint('Error: Loaded data is not a Map.');
+      }
+    } catch (e) {
+      // 例外処理（ファイルが見つからないなど）
+      setState(() {
+        categories = {}; // エラー時の代替で late を初期化
+        _isLoading = false;
+      });
+      debugPrint('Error loading category: $e');
+    }
+  }
 
   /// ① 明示的に一覧を取得して state を更新する（最も単純）
   Future<void> _reloadParts() async {
@@ -212,6 +265,7 @@ class _HeroListItemPageState extends State<HeroListItemPage> {
   @override
   Widget build(BuildContext context) {
     final metadata = part.metadata;
+    debugPrint(metadata.toString());
 
     return Scaffold(
       appBar: AppBar(
@@ -266,18 +320,18 @@ class _HeroListItemPageState extends State<HeroListItemPage> {
                     child: Text(part.name,
                         style: Theme.of(context).textTheme.headlineMedium),
                   ),
-                  Text(part.category ?? ""),
+                  Text("${part.category ?? ""} / ${part.subcategory ?? ""}"),
                   Column(
                     children: [
-                      _buildInfoRow("型番", part.code),
-                      _buildInfoRow("在庫数", part.stock),
-                      _buildInfoRow("保管場所", part.location),
+                      _buildInfoRow(part, part.category ?? "", "型番", part.code),
+                      _buildInfoRow(part, part.category ?? "", "在庫数", part.stock),
+                      _buildInfoRow(part, part.category ?? "", "保管場所", part.location),
                       _buildLinkRow("データシート", part.datasheetUrl),
                       _buildLinkRow("購入先", part.buyUrl),
                       const Divider(),
                       ...(metadata ?? {})
                           .entries
-                          .map((e) => _buildInfoRow(e.key, e.value)),
+                          .map((e) => _buildInfoRow(part, part.category ?? "", e.key, e.value)),
                       const SizedBox(
                         height: 20,
                       ),
@@ -311,30 +365,28 @@ class _HeroListItemPageState extends State<HeroListItemPage> {
       ),
     );
   }
-
+  /*
   Widget _buildInfoRow(String key, dynamic value, {double indent = 0}) {
-
+    debugPrint('$key, $value');
     // カテゴリごとのスキーマ定義を取得（なければ空マップ）
     final category = (part.category ?? '').toString();
     final Map<String, dynamic> categorySchema =
-        (part.metadata?[category] is Map)
-            ? Map<String, dynamic>.from(part.metadata?[category])
-            : <String, dynamic>{};
+    (part.metadata?[category] is Map)
+        ? Map<String, dynamic>.from(part.metadata?[category])
+        : <String, dynamic>{};
 
     // 内部再帰関数（現在のスキーマコンテキストを受け取る）
     Widget buildRec(String curKey, dynamic curValue,
         Map<String, dynamic> curSchema, double curIndent) {
       // スキーマ定義を解決するヘルパ（ドット区切りキーにも対応）
-      // ----- 既存の resolveDef を置き換える（この関数だけ差し替えてください） -----
       Map<String, dynamic>? resolveDef(Map<String, dynamic> s, String k) {
-        // まずは既存の挙動（そのスキーマコンテキスト内を探す）
         if (s.containsKey(k)) {
           final v = s[k];
           if (v is Map<String, dynamic>) return v;
           if (v is Map) return Map<String, dynamic>.from(v);
         }
 
-        // ドット区切り ("size.depth") の場合に下っていく（既存ロジック）
+        // ドット区切り ("size.depth") の場合に下っていく
         if (k.contains('.')) {
           final parts = k.split('.');
           Map<String, dynamic>? cs = s;
@@ -350,71 +402,10 @@ class _HeroListItemPageState extends State<HeroListItemPage> {
           return cs;
         }
 
-        // ----------------- ここから追加の安全なフォールバック探索 -----------------
-        // 既存の s（curSchema）で見つからなかった場合に限り、
-        // part.metadata のルート全体を再帰検索して該当定義を探す。
-        // （これにより、スキーマ定義が別の場所にあるケースに対応）
-        Map<String, dynamic>? findInMetadata(Map<dynamic, dynamic>? node, String key) {
-          if (node == null) return null;
-          try {
-            for (final entry in node.entries) {
-              final k0 = entry.key;
-              final v0 = entry.value;
-              // もしここが Map で直接キーを持っていれば返す
-              if (v0 is Map && v0.containsKey(key)) {
-                final found = v0[key];
-                if (found is Map<String, dynamic>) return found;
-                if (found is Map) return Map<String, dynamic>.from(found);
-              }
-              // 再帰探索（深さ探索）
-              if (v0 is Map) {
-                final rec = findInMetadata(v0, key);
-                if (rec != null) return rec;
-              } else if (v0 is List) {
-                for (final item in v0) {
-                  if (item is Map) {
-                    final rec2 = findInMetadata(item, key);
-                    if (rec2 != null) return rec2;
-                  }
-                }
-              }
-            }
-          } catch (_) {
-            // ここでは絶対に例外を投げない（デバッグ時のみログ化しておく）
-            debugPrint('[resolveDef fallback] metadata traversal error for key="$k"');
-          }
-          return null;
-        }
-
-        // part.metadata が Map なら探索する（存在しない場合は何もしない）
-        try {
-          final rootMeta = part.metadata;
-          if (rootMeta is Map) {
-            final found = findInMetadata(rootMeta, k);
-            if (found != null) return found;
-            // また、サブカテゴリ的に 'subcategories' 下にある可能性も探索
-            if (rootMeta!.containsKey('subcategories') && rootMeta['subcategories'] is Map) {
-              final sub = rootMeta['subcategories'] as Map;
-              if (sub.containsKey(k)) {
-                final cand = sub[k];
-                if (cand is Map<String, dynamic>) return cand;
-                if (cand is Map) return Map<String, dynamic>.from(cand);
-              }
-            }
-          }
-        } catch (_) {
-          // 念のため例外を握り潰す（ここで落とさない）
-        }
-
-        // 見つからなければ null を返す（既存のフォールバックへ委ねる形を崩さない）
         return null;
       }
 
-
       final Map<String, dynamic>? def = resolveDef(curSchema, curKey);
-      debugPrint(
-        'key=$curKey, label=${def?['label'] ?? 'null'}, name=${def?['name'] ?? 'null'}, unit=${def?['unit'] ?? 'null'}',
-      );
 
       // label と unit を決定（見つからなければ key をそのままラベルにする）
       String label = curKey;
@@ -484,8 +475,8 @@ class _HeroListItemPageState extends State<HeroListItemPage> {
         final display = (curValue == null)
             ? ''
             : (unit != null
-                ? '${curValue.toString()} $unit'
-                : curValue.toString());
+            ? '${curValue.toString()} $unit'
+            : curValue.toString());
         return Padding(
           padding: EdgeInsets.only(left: curIndent, top: 4, bottom: 4),
           child: Row(
@@ -502,12 +493,53 @@ class _HeroListItemPageState extends State<HeroListItemPage> {
         );
       }
     } // end buildRec
-
+    buildInfo(part, key, value);
     // 初回はカテゴリスキーマをコンテキストとして渡す
-
     return buildRec(key, value, categorySchema, indent);
   }
+*/
+  Widget _buildInfoRow(Part part, String category, String key, dynamic value) {
+    (String, String) getLabelFromKey(String category, String key) {
+      var categoriess = categories;
+      var label = categoriess[category]['subcategories'][part.subcategory][key]['label'];
 
+      return (label.toString(), value.toString());
+    }
+    String label = "";
+    String itemValue = "";
+
+    //var categories = getCategory();
+
+    //debugPrint('info cate${categories}');
+
+    debugPrint('key:$key');
+    debugPrint('value:$value');
+
+    switch (key) {
+      case "型番" || "在庫数" || "保管場所" || "データシート" || "購入先":
+        label = key;
+        itemValue = value.toString();
+      default:
+        (label, itemValue) = getLabelFromKey(category, key);
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              label, 
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          Expanded(child: Text(itemValue))
+        ],
+      ),
+    );
+  }
   Widget _buildLinkRow(String label, String? url) {
     if (url == null) return const SizedBox();
     return Padding(

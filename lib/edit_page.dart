@@ -380,7 +380,7 @@ class _EditPartPageState extends State<EditPartPage> {
       );
       //Navigator.push(context, MaterialPageRoute(builder: (context) => HeroListItemPage(part: widget.part, index: index, heroTag: heroTag, db: db)))
       debugPrint(
-          'PartEdit: pop returning -> id:${result.id} name:${result.name} code:${result.code} location:${result.location} stock:${result.stock}');
+          'PartEdit: pop returning -> id:${result.id} name:${result.name} code:${result.code} location:${result.location} stock:${result.stock}\nmetadata:${result.metadata}');
       Navigator.of(context).pop(result);
     } catch (e, st) {
       debugPrint('savePart error: $e\n$st');

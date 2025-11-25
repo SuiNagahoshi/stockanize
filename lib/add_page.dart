@@ -177,6 +177,8 @@ class _AddPartPageState extends State<AddPartPage> {
       final options = List<String>.from(param["option"]);
       final currentValue = _selectedImplementation;
 
+      final controller =
+      _paramControllers.putIfAbsent(key, () => TextEditingController());
       return DropdownButtonFormField<String>(
         decoration: InputDecoration(labelText: label),
         initialValue: currentValue,
@@ -188,6 +190,7 @@ class _AddPartPageState extends State<AddPartPage> {
             .toList(),
         onChanged: (val) {
           setState(() {
+            controller.text = val ?? "";
             _selectedImplementation = val;
           });
         },
@@ -238,7 +241,7 @@ class _AddPartPageState extends State<AddPartPage> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label),
+            Text(label,),
             const SizedBox(height: 6),
             ...subParams.map((e) => _buildParamRow(e.key, e.value)),
           ],
@@ -423,6 +426,7 @@ class _AddPartPageState extends State<AddPartPage> {
         const SnackBar(content: Text("部品を登録しました")),
       );
       debugPrint("snackbar");
+      debugPrint(metadata.toString());
 
       // 入力フォームをリセット（カテゴリも含めて）
       setState(() {
