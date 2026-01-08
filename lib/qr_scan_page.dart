@@ -1,8 +1,8 @@
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:flutter/material.dart';
-import 'package:stockanize/parts_list_page.dart';
 
 import 'db/database.dart';
+import 'edit_page.dart';
 
 class QrScanPage extends StatefulWidget {
   @override
@@ -51,7 +51,6 @@ class _QrScanPageState extends State<QrScanPage> {
       return;
     }
     final part = partsList[index];
-    final heroTag = 'hero_part_$partId';
 
     // 部品詳細ページへ遷移
     await Navigator.push(
@@ -59,8 +58,11 @@ class _QrScanPageState extends State<QrScanPage> {
         //MaterialPageRoute(builder: (_) => QrResultPage(partId: partId.toString())),
         MaterialPageRoute(
             builder: (context) =>
-                HeroListItemPage(part: part, index: index, heroTag: heroTag)));
-
+                //HeroListItemPage(part: part, index: index, heroTag: heroTag)));
+                EditPartPage(
+                  db: db,
+                  part: part,
+                )));
     // 戻ってきたらスキャンを再開
     _resumeScanning();
   }

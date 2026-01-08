@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -48,6 +49,8 @@ class _PartQrCardState extends State<PartQrCard> {
       await file.writeAsBytes(pngBytes);
 
       if (!mounted) return;
+
+      String? selectedDir = await FilePicker.platform.getDirectoryPath();
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

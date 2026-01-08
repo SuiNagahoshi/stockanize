@@ -1,6 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:linkwell/linkwell.dart';
 import 'package:stockanize/db/parts.dart';
+import 'package:stockanize/edit_page.dart';
 import 'package:stockanize/qr_label.dart';
 
 import 'db/database.dart';
@@ -15,6 +19,8 @@ class PartsListPage extends StatefulWidget {
 
 class _PartsListPageState extends State<PartsListPage> {
   //List<Part>? _lastParts; // 最後に有効だったデータを保持する
+
+  final db = AppDatabase.instance;
 
   @override
   Widget build(BuildContext context) {
@@ -126,7 +132,7 @@ class _PartsListPageState extends State<PartsListPage> {
                         MaterialPageRoute(
                           builder: (_) => HeroListItemPage(
                             part: part,
-                            heroTag: heroTag, index: index, // 同じタグを渡す
+                            heroTag: heroTag, index: index, db: db, // 同じタグを渡す
                           ),
                         ),
                       );
@@ -147,30 +153,126 @@ class _PartsListPageState extends State<PartsListPage> {
   }
 }
 
-class HeroListItemPage extends StatelessWidget {
+class HeroListItemPage extends StatefulWidget {
   final Part part;
+
   final int index;
 
   final dynamic heroTag;
+
+  final AppDatabase db;
+
+  //late final Part part;
+  //late final int index;
+  //late final AppDatabase db;
+
   const HeroListItemPage(
       {super.key,
       required this.part,
       required this.index,
-      required this.heroTag});
+      required this.heroTag,
+      required this.db});
+
+  @override
+  State<HeroListItemPage> createState() => _HeroListItemPageState();
+}
+
+class _HeroListItemPageState extends State<HeroListItemPage> {
+  late final Stream<List<Part>> _partsStream;
+  @override
+  void initState() {
+    super.initState();
+
+    // ① partsテーブルの変更を監視
+    _partsStream = widget.db.select(widget.db.parts).watch();
+
+    _loadCategories();
+  }
+
+  //final dynamic heroTag;
+  late var part = widget.part;
+
+  Future<dynamic> getCategories() async {
+    var json = await rootBundle.loadString('assets/categories.json');
+    //debugPrint('getcategory\n$json');
+    var decoded = jsonDecode(json);
+    debugPrint('${decoded.runtimeType}');
+    if (decoded is Map) {
+      debugPrint('yah');
+      return decoded;
+    } else {
+      return;
+    }
+  }
+
+  late final categories;
+  //_HeroListItemPageState._(this.category);
+
+  // 💡 非同期でデータをロードするメソッド
+  Future<void> _loadCategories() async {
+    try {
+      // getCategory() はグローバルまたは外部で定義された関数として呼び出す
+      var data = await getCategories();
+
+      // データの型判定
+      if (data is Map<String, dynamic>) {
+        // 成功したら late フィールドを初期化し、UIを更新
+        setState(() {
+          categories = data; // late フィールドへの最初の代入
+        });
+      } else {
+        // 失敗した場合（Mapでなかった場合）
+        setState(() {
+          categories = {}; // エラー時の代替（例: 空のMap）で late を初期化
+        });
+        debugPrint('Error: Loaded data is not a Map.');
+      }
+    } catch (e) {
+      // 例外処理（ファイルが見つからないなど）
+      setState(() {
+        categories = {}; // エラー時の代替で late を初期化
+      });
+      debugPrint('Error loading category: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final metadata = part.metadata;
+    debugPrint(metadata.toString());
 
     return Scaffold(
-      appBar: AppBar(title: Text(part.name)),
+      appBar: AppBar(
+        title: Text(part.name),
+        actions: [
+          IconButton(
+              onPressed: () async {
+                final result = await Navigator.of(context).push(
+                  MaterialPageRoute(
+                      builder: (context) => EditPartPage(
+                            db: widget.db,
+                            part: part,
+                          )),
+                );
+
+                if (result != null && mounted) {
+                  setState(() {
+                    debugPrint(
+                        '  received id:${result.id} name:${result.name} code:${result.code} location:${result.location} stock:${result.stock}');
+                    part = result;
+                  });
+                }
+              },
+              icon: Icon(Icons.edit))
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: SingleChildScrollView(
           child: Column(
             children: [
               Hero(
-                tag: heroTag, //"hero_list_item_$index",
+                tag: widget.heroTag, //"hero_list_item_$index",
                 child: Container(
                   width: double.infinity,
                   height: 250,
@@ -192,18 +294,19 @@ class HeroListItemPage extends StatelessWidget {
                     child: Text(part.name,
                         style: Theme.of(context).textTheme.headlineMedium),
                   ),
-                  Text(part.category ?? ""),
+                  Text("${part.category ?? ""} / ${part.subcategory ?? ""}"),
                   Column(
                     children: [
-                      _buildInfoRow("型番", part.code),
-                      _buildInfoRow("在庫数", part.stock),
-                      _buildInfoRow("保管場所", part.location),
+                      _buildInfoRow(part, part.category ?? "", "型番", part.code),
+                      _buildInfoRow(
+                          part, part.category ?? "", "在庫数", part.stock),
+                      _buildInfoRow(
+                          part, part.category ?? "", "保管場所", part.location),
                       _buildLinkRow("データシート", part.datasheetUrl),
                       _buildLinkRow("購入先", part.buyUrl),
                       const Divider(),
-                      ...(metadata ?? {})
-                          .entries
-                          .map((e) => _buildInfoRow(e.key, e.value)),
+                      ...(metadata ?? {}).entries.map((e) => _buildInfoRow(
+                          part, part.category ?? "", e.key, e.value)),
                       const SizedBox(
                         height: 20,
                       ),
@@ -238,89 +341,15 @@ class HeroListItemPage extends StatelessWidget {
     );
   }
 
-  /*Widget _buildInfoRow(String label, dynamic value, {double indent = 0}) {
-    if (value is Map<String, dynamic>) {
-      return Padding(
-        padding: EdgeInsets.only(left: indent, top: 4, bottom: 4),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-            ...value.entries
-                .map((e) => _buildInfoRow(e.key, e.value, indent: indent + 16)),
-          ],
-        ),
-      );
-    } else {
-      return Padding(
-        padding: EdgeInsets.only(left: indent, top: 4, bottom: 4),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 100,
-              child: Text(label,
-                  style: const TextStyle(fontWeight: FontWeight.bold)),
-            ),
-            Expanded(child: Text(value?.toString() ?? "")),
-          ],
-        ),
-      );
-    }
-  }*/
-  /*Widget _buildInfoRow(String label, dynamic value, {double indent = 0}) {
-    if (value is Map) {
-      // Map<String, dynamic> に限定せず
-      return Padding(
-        padding: EdgeInsets.only(left: indent, top: 4, bottom: 4),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-            ...value.entries.map((e) =>
-                _buildInfoRow(e.key.toString(), e.value, indent: indent + 16)),
-          ],
-        ),
-      );
-    } else if (value is List) {
-      return Padding(
-        padding: EdgeInsets.only(left: indent, top: 4, bottom: 4),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-            ...value.asMap().entries.map(
-                  (e) =>
-                      _buildInfoRow("[${e.key}]", e.value, indent: indent + 16),
-                ),
-          ],
-        ),
-      );
-    } else {
-      return Padding(
-        padding: EdgeInsets.only(left: indent, top: 4, bottom: 4),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 100,
-              child: Text(label,
-                  style: const TextStyle(fontWeight: FontWeight.bold)),
-            ),
-            Expanded(child: Text(value?.toString() ?? "")),
-          ],
-        ),
-      );
-    }
-  }*/
-
+  /*
   Widget _buildInfoRow(String key, dynamic value, {double indent = 0}) {
+    debugPrint('$key, $value');
     // カテゴリごとのスキーマ定義を取得（なければ空マップ）
     final category = (part.category ?? '').toString();
     final Map<String, dynamic> categorySchema =
-        (part.metadata?[category] is Map)
-            ? Map<String, dynamic>.from(part.metadata?[category])
-            : <String, dynamic>{};
+    (part.metadata?[category] is Map)
+        ? Map<String, dynamic>.from(part.metadata?[category])
+        : <String, dynamic>{};
 
     // 内部再帰関数（現在のスキーマコンテキストを受け取る）
     Widget buildRec(String curKey, dynamic curValue,
@@ -422,8 +451,8 @@ class HeroListItemPage extends StatelessWidget {
         final display = (curValue == null)
             ? ''
             : (unit != null
-                ? '${curValue.toString()} $unit'
-                : curValue.toString());
+            ? '${curValue.toString()} $unit'
+            : curValue.toString());
         return Padding(
           padding: EdgeInsets.only(left: curIndent, top: 4, bottom: 4),
           child: Row(
@@ -440,9 +469,54 @@ class HeroListItemPage extends StatelessWidget {
         );
       }
     } // end buildRec
-
+    buildInfo(part, key, value);
     // 初回はカテゴリスキーマをコンテキストとして渡す
     return buildRec(key, value, categorySchema, indent);
+  }
+*/
+  Widget _buildInfoRow(Part part, String category, String key, dynamic value) {
+    (String, String) getLabelFromKey(String category, String key) {
+      var categoriess = categories;
+      var label = categoriess[category]['subcategories'][part.subcategory][key]
+          ['label'];
+
+      return (label.toString(), value.toString());
+    }
+
+    String label = "";
+    String itemValue = "";
+
+    //var categories = getCategory();
+
+    //debugPrint('info cate${categories}');
+
+    debugPrint('key:$key');
+    debugPrint('value:$value');
+
+    switch (key) {
+      case "型番" || "在庫数" || "保管場所" || "データシート" || "購入先":
+        label = key;
+        itemValue = value.toString();
+      default:
+        (label, itemValue) = getLabelFromKey(category, key);
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          Expanded(child: Text(itemValue))
+        ],
+      ),
+    );
   }
 
   Widget _buildLinkRow(String label, String? url) {

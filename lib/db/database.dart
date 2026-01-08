@@ -17,6 +17,7 @@ class AppDatabase extends _$AppDatabase {
   int get schemaVersion => 1;
 }
 
+/*
 LazyDatabase _openConnection() {
   return LazyDatabase(() async {
     final dir = await getApplicationDocumentsDirectory();
@@ -28,5 +29,14 @@ LazyDatabase _openConnection() {
     }
 
     return NativeDatabase(file);
+  });
+}
+*/
+LazyDatabase _openConnection() {
+  return LazyDatabase(() async {
+    final dbDir = await getApplicationDocumentsDirectory();
+    final dbFile = File(join(dbDir.path, 'parts.sqlite'));
+
+    return NativeDatabase(dbFile);
   });
 }

@@ -23,6 +23,11 @@ class $PartsTable extends Parts with TableInfo<$PartsTable, Part> {
   late final GeneratedColumn<String> category = GeneratedColumn<String>(
       'category', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _subcategoryMeta =
+      const VerificationMeta('subcategory');
+  late final GeneratedColumn<String> subcategory = GeneratedColumn<String>(
+      'subcategory', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _nameMeta = const VerificationMeta('name');
   @override
   late final GeneratedColumn<String> name = GeneratedColumn<String>(
@@ -67,6 +72,7 @@ class $PartsTable extends Parts with TableInfo<$PartsTable, Part> {
   List<GeneratedColumn> get $columns => [
         id,
         category,
+        subcategory,
         name,
         code,
         stock,
@@ -91,6 +97,12 @@ class $PartsTable extends Parts with TableInfo<$PartsTable, Part> {
     if (data.containsKey('category')) {
       context.handle(_categoryMeta,
           category.isAcceptableOrUnknown(data['category']!, _categoryMeta));
+    }
+    if (data.containsKey('subcategory')) {
+      context.handle(
+          _subcategoryMeta,
+          subcategory.isAcceptableOrUnknown(
+              data['subcategory']!, _subcategoryMeta));
     }
     if (data.containsKey('name')) {
       context.handle(
@@ -133,6 +145,8 @@ class $PartsTable extends Parts with TableInfo<$PartsTable, Part> {
           .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
       category: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}category']),
+      subcategory: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}subcategory']),
       name: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
       code: attachedDatabase.typeMapping
@@ -165,6 +179,7 @@ class $PartsTable extends Parts with TableInfo<$PartsTable, Part> {
 class Part extends DataClass implements Insertable<Part> {
   final int id;
   final String? category;
+  final String? subcategory;
   final String name;
   final String? code;
   final int stock;
@@ -175,6 +190,7 @@ class Part extends DataClass implements Insertable<Part> {
   const Part(
       {required this.id,
       this.category,
+      this.subcategory,
       required this.name,
       this.code,
       required this.stock,
@@ -188,6 +204,9 @@ class Part extends DataClass implements Insertable<Part> {
     map['id'] = Variable<int>(id);
     if (!nullToAbsent || category != null) {
       map['category'] = Variable<String>(category);
+    }
+    if (!nullToAbsent || category != null) {
+      map['subcategory'] = Variable<String>(subcategory);
     }
     map['name'] = Variable<String>(name);
     if (!nullToAbsent || code != null) {
@@ -216,6 +235,9 @@ class Part extends DataClass implements Insertable<Part> {
       category: category == null && nullToAbsent
           ? const Value.absent()
           : Value(category),
+      subcategory: subcategory == null && nullToAbsent
+          ? const Value.absent()
+          : Value(subcategory),
       name: Value(name),
       code: code == null && nullToAbsent ? const Value.absent() : Value(code),
       stock: Value(stock),
@@ -239,6 +261,7 @@ class Part extends DataClass implements Insertable<Part> {
     return Part(
       id: serializer.fromJson<int>(json['id']),
       category: serializer.fromJson<String?>(json['category']),
+      subcategory: serializer.fromJson<String?>(json['subcategory']),
       name: serializer.fromJson<String>(json['name']),
       code: serializer.fromJson<String?>(json['code']),
       stock: serializer.fromJson<int>(json['stock']),
@@ -254,6 +277,7 @@ class Part extends DataClass implements Insertable<Part> {
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'category': serializer.toJson<String?>(category),
+      'subcategory': serializer.toJson<String?>(subcategory),
       'name': serializer.toJson<String>(name),
       'code': serializer.toJson<String?>(code),
       'stock': serializer.toJson<int>(stock),
@@ -267,6 +291,7 @@ class Part extends DataClass implements Insertable<Part> {
   Part copyWith(
           {int? id,
           Value<String?> category = const Value.absent(),
+          Value<String?> subcategory = const Value.absent(),
           String? name,
           Value<String?> code = const Value.absent(),
           int? stock,
@@ -277,6 +302,7 @@ class Part extends DataClass implements Insertable<Part> {
       Part(
         id: id ?? this.id,
         category: category.present ? category.value : this.category,
+        subcategory: subcategory.present ? subcategory.value : this.subcategory,
         name: name ?? this.name,
         code: code.present ? code.value : this.code,
         stock: stock ?? this.stock,
@@ -290,6 +316,8 @@ class Part extends DataClass implements Insertable<Part> {
     return Part(
       id: data.id.present ? data.id.value : this.id,
       category: data.category.present ? data.category.value : this.category,
+      subcategory:
+          data.subcategory.present ? data.subcategory.value : this.subcategory,
       name: data.name.present ? data.name.value : this.name,
       code: data.code.present ? data.code.value : this.code,
       stock: data.stock.present ? data.stock.value : this.stock,
@@ -307,6 +335,7 @@ class Part extends DataClass implements Insertable<Part> {
     return (StringBuffer('Part(')
           ..write('id: $id, ')
           ..write('category: $category, ')
+          ..write('subcategory: $subcategory, ')
           ..write('name: $name, ')
           ..write('code: $code, ')
           ..write('stock: $stock, ')
@@ -319,14 +348,15 @@ class Part extends DataClass implements Insertable<Part> {
   }
 
   @override
-  int get hashCode => Object.hash(id, category, name, code, stock, location,
-      datasheetUrl, buyUrl, metadata);
+  int get hashCode => Object.hash(id, category, subcategory, name, code, stock,
+      location, datasheetUrl, buyUrl, metadata);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is Part &&
           other.id == this.id &&
           other.category == this.category &&
+          other.subcategory == this.subcategory &&
           other.name == this.name &&
           other.code == this.code &&
           other.stock == this.stock &&
@@ -339,6 +369,7 @@ class Part extends DataClass implements Insertable<Part> {
 class PartsCompanion extends UpdateCompanion<Part> {
   final Value<int> id;
   final Value<String?> category;
+  final Value<String?> subcategory;
   final Value<String> name;
   final Value<String?> code;
   final Value<int> stock;
@@ -349,6 +380,7 @@ class PartsCompanion extends UpdateCompanion<Part> {
   const PartsCompanion({
     this.id = const Value.absent(),
     this.category = const Value.absent(),
+    this.subcategory = const Value.absent(),
     this.name = const Value.absent(),
     this.code = const Value.absent(),
     this.stock = const Value.absent(),
@@ -360,6 +392,7 @@ class PartsCompanion extends UpdateCompanion<Part> {
   PartsCompanion.insert({
     this.id = const Value.absent(),
     this.category = const Value.absent(),
+    this.subcategory = const Value.absent(),
     required String name,
     this.code = const Value.absent(),
     this.stock = const Value.absent(),
@@ -371,6 +404,7 @@ class PartsCompanion extends UpdateCompanion<Part> {
   static Insertable<Part> custom({
     Expression<int>? id,
     Expression<String>? category,
+    Expression<String>? subcategory,
     Expression<String>? name,
     Expression<String>? code,
     Expression<int>? stock,
@@ -382,6 +416,7 @@ class PartsCompanion extends UpdateCompanion<Part> {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (category != null) 'category': category,
+      if (subcategory != null) 'subcategory': subcategory,
       if (name != null) 'name': name,
       if (code != null) 'code': code,
       if (stock != null) 'stock': stock,
@@ -395,6 +430,7 @@ class PartsCompanion extends UpdateCompanion<Part> {
   PartsCompanion copyWith(
       {Value<int>? id,
       Value<String?>? category,
+      Value<String?>? subcategory,
       Value<String>? name,
       Value<String?>? code,
       Value<int>? stock,
@@ -405,6 +441,7 @@ class PartsCompanion extends UpdateCompanion<Part> {
     return PartsCompanion(
       id: id ?? this.id,
       category: category ?? this.category,
+      subcategory: subcategory ?? this.subcategory,
       name: name ?? this.name,
       code: code ?? this.code,
       stock: stock ?? this.stock,
@@ -423,6 +460,9 @@ class PartsCompanion extends UpdateCompanion<Part> {
     }
     if (category.present) {
       map['category'] = Variable<String>(category.value);
+    }
+    if (subcategory.present) {
+      map['subcategory'] = Variable<String>(subcategory.value);
     }
     if (name.present) {
       map['name'] = Variable<String>(name.value);
@@ -454,6 +494,7 @@ class PartsCompanion extends UpdateCompanion<Part> {
     return (StringBuffer('PartsCompanion(')
           ..write('id: $id, ')
           ..write('category: $category, ')
+          ..write('subcategory: $subcategory, ')
           ..write('name: $name, ')
           ..write('code: $code, ')
           ..write('stock: $stock, ')
@@ -480,6 +521,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
 typedef $$PartsTableCreateCompanionBuilder = PartsCompanion Function({
   Value<int> id,
   Value<String?> category,
+  Value<String?> subcategory,
   required String name,
   Value<String?> code,
   Value<int> stock,
@@ -491,6 +533,7 @@ typedef $$PartsTableCreateCompanionBuilder = PartsCompanion Function({
 typedef $$PartsTableUpdateCompanionBuilder = PartsCompanion Function({
   Value<int> id,
   Value<String?> category,
+  Value<String?> subcategory,
   Value<String> name,
   Value<String?> code,
   Value<int> stock,
@@ -513,6 +556,9 @@ class $$PartsTableFilterComposer extends Composer<_$AppDatabase, $PartsTable> {
 
   ColumnFilters<String> get category => $composableBuilder(
       column: $table.category, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get subcategory => $composableBuilder(
+      column: $table.subcategory, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get name => $composableBuilder(
       column: $table.name, builder: (column) => ColumnFilters(column));
@@ -554,6 +600,9 @@ class $$PartsTableOrderingComposer
   ColumnOrderings<String> get category => $composableBuilder(
       column: $table.category, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get subcategory => $composableBuilder(
+      column: $table.subcategory, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get name => $composableBuilder(
       column: $table.name, builder: (column) => ColumnOrderings(column));
 
@@ -591,6 +640,9 @@ class $$PartsTableAnnotationComposer
 
   GeneratedColumn<String> get category =>
       $composableBuilder(column: $table.category, builder: (column) => column);
+
+  GeneratedColumn<String> get subcategory => $composableBuilder(
+      column: $table.subcategory, builder: (column) => column);
 
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
@@ -640,6 +692,7 @@ class $$PartsTableTableManager extends RootTableManager<
           updateCompanionCallback: ({
             Value<int> id = const Value.absent(),
             Value<String?> category = const Value.absent(),
+            Value<String?> subcategory = const Value.absent(),
             Value<String> name = const Value.absent(),
             Value<String?> code = const Value.absent(),
             Value<int> stock = const Value.absent(),
@@ -651,6 +704,7 @@ class $$PartsTableTableManager extends RootTableManager<
               PartsCompanion(
             id: id,
             category: category,
+            subcategory: subcategory,
             name: name,
             code: code,
             stock: stock,
@@ -662,6 +716,7 @@ class $$PartsTableTableManager extends RootTableManager<
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
             Value<String?> category = const Value.absent(),
+            Value<String?> subcategory = const Value.absent(),
             required String name,
             Value<String?> code = const Value.absent(),
             Value<int> stock = const Value.absent(),
@@ -673,6 +728,7 @@ class $$PartsTableTableManager extends RootTableManager<
               PartsCompanion.insert(
             id: id,
             category: category,
+            subcategory: subcategory,
             name: name,
             code: code,
             stock: stock,
