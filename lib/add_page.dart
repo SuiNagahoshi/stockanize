@@ -46,10 +46,10 @@ class _AddPartPageState extends State<AddPartPage>
 
     _dragAnimController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 150),
+      duration: const Duration(milliseconds: 250),
     );
 
-    _dragScale = Tween<double>(begin: 1.0, end: 0.95).animate(
+    _dragScale = Tween<double>(begin: 1.0, end: 0.90).animate(
       CurvedAnimation(
         parent: _dragAnimController,
         curve: Curves.easeOut,
@@ -82,28 +82,6 @@ class _AddPartPageState extends State<AddPartPage>
 
     super.dispose();
   }
-
-  /*Future<void> _pickFromGallery() async {
-    final picked = await _picker.pickMultiImage();
-    if (picked.isNotEmpty) {
-      // 最大4枚まで
-      setState(() {
-        final newImages = [..._images, ...picked];
-        _images = newImages.take(4).toList();
-      });
-    }
-  }
-
-  Future<void> _pickFromCamera() async {
-    final picked = await _picker.pickImage(source: ImageSource.camera);
-    if (picked != null) {
-      if (_images.length < 4) {
-        setState(() {
-          _images.add(picked);
-        });
-      }
-    }
-  }*/
 
   // カテゴリ読み込み（少し堅牢にキャスト）
   Future<void> _loadCategories() async {
@@ -440,26 +418,6 @@ class _AddPartPageState extends State<AddPartPage>
 
     debugPrint("companion: $companion");
 
-    /*try {
-      final id = await widget.db.insertPart(companion);
-      debugPrint("inserted part with id: $id");
-      //if (!mounted) return;
-      if (!mounted) {
-        debugPrint("not mounted");
-        return;
-      }
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text("部品を登録しました")));
-      //Navigator.of(context).pop(); // 登録後に閉じる
-      Navigator.pop(context);
-    } catch (e, st) {
-      // ここでログを残してクラッシュを防ぐ
-      debugPrint('insertPart error: $e\n$st');
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('保存に失敗しました: $e')));
-      }
-    }*/
     try {
       await widget.db.insertPart(companion);
       debugPrint("insert");
@@ -495,7 +453,6 @@ class _AddPartPageState extends State<AddPartPage>
 
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _scrollKey = GlobalKey();
-  final List<GlobalKey> _imageKeys = [];
   int? _draggingIndex;
   int? _targetIndex;
   bool _isDraggingAtTail = false;
@@ -543,32 +500,6 @@ class _AddPartPageState extends State<AddPartPage>
         _targetIndex = _targetIndex! - 1;
       }
     });
-  }
-
-  /*void _reorderImage(int oldIndex, int newIndex) {
-    setState(() {
-      if (newIndex > oldIndex) {
-        newIndex -= 1;
-      }
-      final image = _images.removeAt(oldIndex);
-      _images.insert(newIndex, image);
-    });
-  }*/
-
-  /*void _moveImage(int from, int to) {
-    setState(() {
-      final item = _images.removeAt(from);
-      _images.insert(to, item);
-    });
-  }*/
-
-  double _getImageWidth(int index) {
-    final key = _images[index].key;
-    final context = key.currentContext;
-    if (context == null) return 0;
-
-    final box = context.findRenderObject() as RenderBox;
-    return box.size.width;
   }
 
   RenderBox? _getScrollRenderBox() {
@@ -630,20 +561,6 @@ class _AddPartPageState extends State<AddPartPage>
       height: 200,
     );
   }
-
-  /*void _submit() {
-    if (_images.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('画像を1枚以上選択してください')),
-      );
-      return;
-    }
-
-    // 送信処理例
-    for (final img in _images) {
-      debugPrint(img.path);
-    }
-  }*/
 
   Widget _imageItem(int index) {
     final bool isDragging = _draggingIndex == index;
@@ -829,25 +746,6 @@ class _AddPartPageState extends State<AddPartPage>
     );
   }
 
-  /*Widget _buildEndDragTarget() {
-    return DragTarget<int>(
-      onWillAcceptWithDetails: (from) {
-        setState(() {
-          _targetIndex = _images.length;
-        });
-        return true;
-      },
-      builder: (context, _, __) {
-        return SizedBox(
-          width: 48, // ★重要：十分な hit area
-          child: (_draggingIndex != null && _targetIndex == _images.length)
-              ? Center(child: _insertIndicator())
-              : null,
-        );
-      },
-    );
-  }*/
-
   Widget _imageView(int index, {double scale = 1.0, double opacity = 1.0}) {
     return Opacity(
       opacity: opacity,
@@ -933,20 +831,6 @@ class _AddPartPageState extends State<AddPartPage>
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  /*Row(
-                    children: [
-                      ElevatedButton(
-                        onPressed: _pickFromGallery,
-                        child: const Text("ギャラリー"),
-                      ),
-                      const SizedBox(width: 8),
-                      ElevatedButton(
-                        onPressed: _pickFromCamera,
-                        child: const Text("カメラ"),
-                      ),
-                    ],
-                  ),*/
-
                   const SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -962,68 +846,6 @@ class _AddPartPageState extends State<AddPartPage>
                     ],
                   ),
                   const Spacer(),
-
-                  //const SizedBox(height: 16),
-
-                  // ===== 横並び画像 + 並べ替え =====
-                  /*SizedBox(
-                    height: 200, // ★必須
-                    child: _images.isEmpty
-                        ? const Center(child: Text('画像がありません'))
-                        : ReorderableListView.builder(
-                            //itemExtent: 600, // ← ★重要（100 + padding 16）
-                            scrollController: _horizontalScrollController,
-                            scrollDirection: Axis.horizontal,
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            shrinkWrap: true,
-                            onReorder: _reorderImage,
-                            proxyDecorator: (child, index, animation) {
-                              return AnimatedBuilder(
-                                animation: animation,
-                                builder: (context, _) {
-                                  return Transform.scale(
-                                    scale: 0.95,
-                                    child: Opacity(
-                                      opacity: 0.7,
-                                      child: child,
-                                    ),
-                                  );
-                                },
-                              );
-                            },
-                            itemCount: _images.length,
-                            itemBuilder: (context, index) {
-                              return SizedBox(
-                                key: ValueKey(_images[index].path),
-                                width: 120, // 並べ替え用の仮想幅
-                                height: 200,
-                                child: OverflowBox(
-                                  minWidth: 0,
-                                  maxWidth: double.infinity, // ← 可変幅を許可
-                                  alignment: Alignment.center,
-                                  child: Stack(
-                                    clipBehavior: Clip.none,
-                                    children: [
-                                      Image.file(
-                                        File(_images[index].path),
-                                        height: 200,
-                                        fit: BoxFit.fitHeight, // 高さ固定・幅可変
-                                      ),
-                                      Positioned(
-                                        top: -6,
-                                        right: -6,
-                                        child: IconButton(
-                                          icon: const Icon(Icons.close, size: 18, color: Colors.red),
-                                          onPressed: () => _removeImage(index),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                  ),*/
 
                   SizedBox(
                     key: _scrollKey,
@@ -1148,44 +970,6 @@ class _AddPartPageState extends State<AddPartPage>
   }
 }
 
-/* class _ImageTile extends StatelessWidget {
-  final XFile file;
-  final VoidCallback? onDelete;
-  final bool isDragging;
-
-  const _ImageTile({
-    required this.file,
-    this.onDelete,
-    this.isDragging = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Opacity(
-      opacity: isDragging ? 0.7 : 1,
-      child: Stack(
-        children: [
-          Image.file(
-            File(file.path),
-            //width: 256,
-
-            //height: 96,
-            fit: BoxFit.cover,
-          ),
-          if (onDelete != null)
-            Positioned(
-              top: 0,
-              right: 0,
-              child: IconButton(
-                icon: const Icon(Icons.close, size: 18),
-                onPressed: onDelete,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}*/
 class ImageItem {
   ImageItem(this.file) : key = GlobalKey();
 
