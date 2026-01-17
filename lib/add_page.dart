@@ -4,7 +4,9 @@ import 'dart:io';
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'package:stockanize/db/parts.dart';
 import 'db/database.dart';
@@ -361,6 +363,32 @@ class _AddPartPageState extends State<AddPartPage>
     );
   }
 
+  Future<String> saveImageToAppDir(File original) async {
+    final bytes = await original.readAsBytes();
+    final decoded = img.decodeImage(bytes);
+    if (decoded == null) {
+      throw Exception('画像のデコードに失敗');
+    }
+
+    // 横1600pxを上限に縮小（縦横比維持）
+    final resized =
+        decoded.width > 1600 ? img.copyResize(decoded, width: 1600) : decoded;
+
+    final dir = await getApplicationDocumentsDirectory();
+    final imageDir = Directory('${dir.path}/parts_images');
+
+    if (!await imageDir.exists()) {
+      await imageDir.create(recursive: true);
+    }
+
+    final fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+    final file = File('${imageDir.path}/$fileName');
+    await file.writeAsBytes(img.encodeJpg(resized, quality: 85));
+
+    return file.path;
+  }
+
   Future<void> _savePart() async {
     debugPrint("=== _savePart START ===");
     if (!_formKey.currentState!.validate()) {
@@ -413,13 +441,46 @@ class _AddPartPageState extends State<AddPartPage>
       buyUrl: buyUrlText.isNotEmpty ? Value(buyUrlText) : const Value.absent(),
 
       // metadata 列は non-null（現状）を想定。空でも {} を渡す。
-      metadata: metadata.isNotEmpty ? Value(metadata) : const Value.absent(),
+      metadata: Value(metadata),
     );
 
     debugPrint("companion: $companion");
 
     try {
-      await widget.db.insertPart(companion);
+      //await widget.db.insertPart(companion);
+
+      await widget.db.transaction(() async {
+        // 1. Part 保存
+        final partId = await widget.db.insertPart(companion);
+
+        // 2. 画像保存
+        for (int i = 0; i < _images.length; i++) {
+          final srcFile = File(_images[i].file.path);
+
+          // app 領域へコピー
+          final dir = await getApplicationDocumentsDirectory();
+          final imageDir = Directory('${dir.path}/part_images/$partId');
+          if (!await imageDir.exists()) {
+            await imageDir.create(recursive: true);
+          }
+
+          final ext = srcFile.path.split('.').last;
+          final dstPath =
+              '${imageDir.path}/${DateTime.now().millisecondsSinceEpoch}_$i.$ext';
+
+          final savedFile = await srcFile.copy(dstPath);
+
+          // DB 登録（順番付き）
+          await widget.db.into(widget.db.partsImages).insert(
+                PartsImagesCompanion.insert(
+                  partId: partId,
+                  imagePath: savedFile.path,
+                  sortOrder: i,
+                ),
+              );
+        }
+      });
+
       debugPrint("insert");
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -439,6 +500,7 @@ class _AddPartPageState extends State<AddPartPage>
         for (final controller in _paramControllers.values) {
           controller.clear();
         }
+        _images.clear(); // ★ 画像もリセット
       });
     } catch (e, st) {
       debugPrint('insertPart error: $e\n$st');
@@ -618,16 +680,13 @@ class _AddPartPageState extends State<AddPartPage>
 
     return LongPressDraggable<int>(
       data: index,
-
       onDragStarted: () {
         _dragAnimController.forward(from: 0);
         _draggingIndex = index;
       },
-
       onDragUpdate: (details) {
         _handleAutoScroll(details.globalPosition);
       },
-
       onDragEnd: (_) {
         if (_draggingIndex != null &&
             _targetIndex != null &&
@@ -635,7 +694,7 @@ class _AddPartPageState extends State<AddPartPage>
           setState(() {
             final item = _images.removeAt(_draggingIndex!);
             final insertIndex =
-            _targetIndex! > _images.length ? _images.length : _targetIndex!;
+                _targetIndex! > _images.length ? _images.length : _targetIndex!;
             _images.insert(insertIndex, item);
           });
         }
@@ -645,67 +704,56 @@ class _AddPartPageState extends State<AddPartPage>
           _targetIndex = null;
         });
       },
-
       feedback: _dragFeedback(index),
       childWhenDragging: _childDrag(index),
+      child: DragTarget<int>(onWillAccept: (from) {
+        if (from == null || from == index) return false;
 
-      child: DragTarget<int>(
-        onWillAccept: (from) {
-          if (from == null || from == index) return false;
-
-          setState(() {
-            _targetIndex = index;
-          });
-          return true;
-        },
-
-        onMove: (details) {
-          // ★ 最後の画像の「尾部」に入ったら最後尾扱い
-          if (isLast) {
-            final box = context.findRenderObject() as RenderBox?;
-            if (box != null) {
-              final local = box.globalToLocal(details.offset);
-              if (local.dx > box.size.width - tailAreaWidth) {
-                if (_targetIndex != _images.length) {
-                  setState(() {
-                    _targetIndex = _images.length;
-                  });
-                }
+        setState(() {
+          _targetIndex = index;
+        });
+        return true;
+      }, onMove: (details) {
+        // ★ 最後の画像の「尾部」に入ったら最後尾扱い
+        if (isLast) {
+          final box = context.findRenderObject() as RenderBox?;
+          if (box != null) {
+            final local = box.globalToLocal(details.offset);
+            if (local.dx > box.size.width - tailAreaWidth) {
+              if (_targetIndex != _images.length) {
+                setState(() {
+                  _targetIndex = _images.length;
+                });
               }
             }
           }
-        },
+        }
+      }, builder: (context, _, __) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 前方挿入ライン
+            if (_draggingIndex != null && _targetIndex == index)
+              _insertIndicator(),
 
-          builder: (context, _, __) {
-            return Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // 前方挿入ライン
-                if (_draggingIndex != null && _targetIndex == index)
-                  _insertIndicator(),
+            _staticImageView(index),
 
-                _staticImageView(index),
-
-                // ★ 最後尾専用エリア
-                if (isLast)
-                  SizedBox(
-                    width: tailAreaWidth,
-                    child: _draggingIndex != null &&
-                        _targetIndex == _images.length
-                        ? Align(
-                      alignment: Alignment.centerLeft,
-                      child: _insertIndicator(),
-                    )
-                        : null,
-                  ),
-
-              ],
-            );
-          }
-      ),
+            // ★ 最後尾専用エリア
+            if (isLast)
+              SizedBox(
+                width: tailAreaWidth,
+                child: _draggingIndex != null && _targetIndex == _images.length
+                    ? Align(
+                        alignment: Alignment.centerLeft,
+                        child: _insertIndicator(),
+                      )
+                    : null,
+              ),
+          ],
+        );
+      }),
     );
   }
-
 
   Widget _staticImageView(int index) {
     return Padding(

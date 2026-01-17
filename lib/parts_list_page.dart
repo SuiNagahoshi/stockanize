@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -21,6 +22,32 @@ class _PartsListPageState extends State<PartsListPage> {
   //List<Part>? _lastParts; // 最後に有効だったデータを保持する
 
   final db = AppDatabase.instance;
+
+  Widget _buildPartThumbnail(List<PartsImage> images) {
+    if (images.isEmpty) {
+      // 画像なし → 従来の仮サムネイル
+      return Container(
+        color: Colors.blue.withAlpha(25),
+        child: const Icon(Icons.electrical_services_outlined),
+      );
+    }
+
+    // sort_order 昇順で先頭を使う
+    final firstImage = images
+      ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+
+    return Image.file(
+      File(firstImage.first.imagePath),
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) {
+        // ファイル欠損時のフォールバック
+        return Container(
+          color: Colors.blue.withAlpha(25),
+          child: const Icon(Icons.broken_image),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -70,14 +97,37 @@ class _PartsListPageState extends State<PartsListPage> {
                     minLeadingWidth: 0,
                     leading: Hero(
                       tag: heroTag,
-                      child: Container(
-                        width: 60,
-                        height: 85,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10),
-                          color: Colors.blue.withAlpha(25),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: SizedBox(
+                          width: 60,
+                          height: 85,
+                          child: FutureBuilder<PartsImage?>(
+                            future: widget.db.getFirstImageByPartId(part.id),
+                            builder: (context, snapshot) {
+                              if (!snapshot.hasData || snapshot.data == null) {
+                                // 画像なし（従来どおり）
+                                return Container(
+                                  color: Colors.blue.withAlpha(25),
+                                  child: const Icon(
+                                      Icons.electrical_services_outlined),
+                                );
+                              }
+
+                              final image = snapshot.data!;
+                              return Image.file(
+                                File(image.imagePath),
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) {
+                                  return Container(
+                                    color: Colors.blue.withAlpha(25),
+                                    child: const Icon(Icons.broken_image),
+                                  );
+                                },
+                              );
+                            },
+                          ),
                         ),
-                        child: const Icon(Icons.electrical_services_outlined),
                       ),
                     ),
                     title: Text(
@@ -179,6 +229,15 @@ class HeroListItemPage extends StatefulWidget {
 
 class _HeroListItemPageState extends State<HeroListItemPage> {
   late final Stream<List<Part>> _partsStream;
+
+  List<PartsImage> _images = [];
+  bool _loadingImages = true;
+
+  late final PageController _pageController;
+  int _currentPage = 0;
+
+  final ValueNotifier<int> _currentPageNotifier = ValueNotifier(0);
+
   @override
   void initState() {
     super.initState();
@@ -187,6 +246,25 @@ class _HeroListItemPageState extends State<HeroListItemPage> {
     _partsStream = widget.db.select(widget.db.parts).watch();
 
     _loadCategories();
+
+    _pageController = PageController()
+      ..addListener(() {
+        final page = _pageController.page;
+        if (page == null) return;
+
+        final index = page.round();
+        if (_currentPageNotifier.value != index) {
+          _currentPageNotifier.value = index;
+        }
+      });
+    _loadImages();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    _currentPageNotifier.dispose();
+    super.dispose();
   }
 
   //final dynamic heroTag;
@@ -236,6 +314,115 @@ class _HeroListItemPageState extends State<HeroListItemPage> {
     }
   }
 
+  Future<void> _loadImages() async {
+    final images = await widget.db.getImagesByPartId(widget.part.id);
+
+    if (!mounted) return;
+
+    setState(() {
+      _images = images;
+      _loadingImages = false;
+    });
+  }
+
+  Widget _buildHeroImage() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            height: 250,
+            width: double.infinity,
+            child: _loadingImages
+                ? const Center(child: CircularProgressIndicator())
+                : _images.isEmpty
+                    ? _buildPlaceholder()
+                    : _buildImageCarousel(),
+          ),
+          if (!_loadingImages && _images.length > 1) _buildPageIndicator(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlaceholder() {
+    return Container(
+      width: double.infinity,
+      height: 250,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        color: Colors.blue.withAlpha(25),
+      ),
+      child: const Center(
+        child: Icon(
+          Icons.electrical_services_outlined,
+          color: Colors.blue,
+          size: 100,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImageCarousel() {
+    return PageView.builder(
+      controller: _pageController,
+      itemCount: _images.length,
+      itemBuilder: (context, index) {
+        final image = _images[index];
+
+        return GestureDetector(
+          onTap: () {
+            Navigator.of(context).push(
+              PageRouteBuilder(
+                opaque: false,
+                barrierColor: Colors.black,
+                pageBuilder: (_, __, ___) {
+                  return ImagePreviewPage(
+                    images: _images,
+                    initialIndex: index,
+                  );
+                },
+              ),
+            );
+          },
+          child: Hero(
+            tag: 'part_image_$index',
+            child: Image.file(
+              File(image.imagePath),
+              fit: BoxFit.contain,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPageIndicator() {
+    return ValueListenableBuilder<int>(
+      valueListenable: _currentPageNotifier,
+      builder: (context, current, _) {
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(_images.length, (index) {
+            final isActive = index == current;
+
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+              width: isActive ? 10 : 8,
+              height: isActive ? 10 : 8,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isActive ? Colors.blue : Colors.grey,
+              ),
+            );
+          }),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final metadata = part.metadata;
@@ -271,7 +458,7 @@ class _HeroListItemPageState extends State<HeroListItemPage> {
         child: SingleChildScrollView(
           child: Column(
             children: [
-              Hero(
+              /*Hero(
                 tag: widget.heroTag, //"hero_list_item_$index",
                 child: Container(
                   width: double.infinity,
@@ -284,7 +471,8 @@ class _HeroListItemPageState extends State<HeroListItemPage> {
                         color: Colors.blue, size: 100),
                   ),
                 ),
-              ),
+              ),*/
+              _buildHeroImage(),
               const SizedBox(height: 16),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -476,27 +664,34 @@ class _HeroListItemPageState extends State<HeroListItemPage> {
 */
   Widget _buildInfoRow(Part part, String category, String key, dynamic value) {
     (String, String) getLabelFromKey(String category, String key) {
-      var categoriess = categories;
-      var label = categoriess[category]['subcategories'][part.subcategory][key]
-          ['label'];
+      try {
+        final categoriess = categories;
+        final label = categoriess[category]?['subcategories']?[part.subcategory]
+            ?[key]?['label'];
 
-      return (label.toString(), value.toString());
+        if (label == null) {
+          return (key, value.toString());
+        }
+
+        return (label.toString(), value.toString());
+      } catch (e) {
+        // LateInitializationError を含むすべての参照失敗を吸収
+        return (key, value.toString());
+      }
     }
 
-    String label = "";
-    String itemValue = "";
-
-    //var categories = getCategory();
-
-    //debugPrint('info cate${categories}');
-
-    debugPrint('key:$key');
-    debugPrint('value:$value');
+    String label;
+    String itemValue;
 
     switch (key) {
-      case "型番" || "在庫数" || "保管場所" || "データシート" || "購入先":
+      case "型番":
+      case "在庫数":
+      case "保管場所":
+      case "データシート":
+      case "購入先":
         label = key;
         itemValue = value.toString();
+        break;
       default:
         (label, itemValue) = getLabelFromKey(category, key);
     }
@@ -513,7 +708,7 @@ class _HeroListItemPageState extends State<HeroListItemPage> {
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
-          Expanded(child: Text(itemValue))
+          Expanded(child: Text(itemValue)),
         ],
       ),
     );
@@ -536,6 +731,65 @@ class _HeroListItemPageState extends State<HeroListItemPage> {
                       color: Colors.lightBlue,
                       decoration: TextDecoration.underline))),
         ],
+      ),
+    );
+  }
+}
+
+class ImagePreviewPage extends StatefulWidget {
+  const ImagePreviewPage({
+    super.key,
+    required this.images,
+    required this.initialIndex,
+  });
+
+  final List<PartsImage> images;
+  final int initialIndex;
+
+  @override
+  State<ImagePreviewPage> createState() => _ImagePreviewPageState();
+}
+
+class _ImagePreviewPageState extends State<ImagePreviewPage> {
+  late final PageController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: GestureDetector(
+        onTap: () => Navigator.of(context).pop(),
+        child: SafeArea(
+          child: PageView.builder(
+            controller: _controller,
+            itemCount: widget.images.length,
+            itemBuilder: (context, index) {
+              final image = widget.images[index];
+
+              return Center(
+                child: Hero(
+                  tag: 'part_image_$index',
+                  child: Image.file(
+                    File(image.imagePath),
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
       ),
     );
   }
