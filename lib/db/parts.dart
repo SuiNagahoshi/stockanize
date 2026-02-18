@@ -6,6 +6,8 @@ import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:stockanize/db/database.dart';
 
+import '../add_page.dart';
+
 class Parts extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get subcategory => text().nullable()();
@@ -44,12 +46,24 @@ extension PartDao on AppDatabase {
 
   Future<List<Part>> getAllParts() => select(parts).get();
 
-  Stream<List<Part>> watchAllParts() => select(parts).watch();
+  Stream<List<Part>> watchParts() => select(parts).watch();
+
+  Stream<List<PartsImage>> watchImages(int partId) {
+    return (select(partsImages)
+      ..where((t) => t.partId.equals(partId))
+      ..orderBy([(t) => OrderingTerm(expression: t.sortOrder)]))
+        .watch();
+  }
+
 
   Future<Part?> getPartById(int id) =>
       (select(parts)..where((tbl) => tbl.id.equals(id))).getSingleOrNull();
 
-  Future<void> updatePart(Part part) => update(parts).replace(part);
+  Future<void> updatePart(Part part) {
+    print('watchAllParts fired');
+
+    return update(parts).replace(part);
+  }
 
   //Future<int> deletePart(int id) =>
   //    (delete(parts)..where((tbl) => tbl.id.equals(id))).go();
@@ -59,8 +73,9 @@ extension PartDao on AppDatabase {
   /// Part + 参考画像をまとめて登録
   Future<int> insertPartWithImages(
     PartsCompanion entry,
-    List<File> images,
+    List<ImageItem> imageItem,
   ) async {
+    final images = imageItem.map((item) => File(item.file.path)).toList();
     return transaction(() async {
       final partId = await into(parts).insert(entry);
       await _insertImages(partId, images);
@@ -71,14 +86,37 @@ extension PartDao on AppDatabase {
   /// Part + 参考画像をまとめて更新
   Future<void> updatePartWithImages(
     Part part,
-    List<File> images,
+    List<ImageItem> imageItems,
   ) async {
     return transaction(() async {
       await update(parts).replace(part);
 
-      // 既存画像を全削除 → 再登録
-      await _deleteImagesByPart(part.id);
-      await _insertImages(part.id, images);
+      // 既存画像取得
+      final existing = await (select(partsImages)
+            ..where((t) => t.partId.equals(part.id)))
+          .get();
+
+      final existingPaths = existing.map((e) => e.imagePath).toSet();
+      final newPaths = imageItems.map((e) => e.file.path).toSet();
+
+      // 削除された画像のみ物理削除
+      final removed = existingPaths.difference(newPaths);
+
+      for (final path in removed) {
+        final file = File(path);
+        if (await file.exists()) {
+          await file.delete();
+        }
+      }
+
+      // DB全削除
+      await (delete(partsImages)..where((t) => t.partId.equals(part.id))).go();
+
+      // 再登録
+      await _insertImages(
+        part.id,
+        imageItems.map((e) => File(e.file.path)).toList(),
+      );
     });
   }
 
@@ -104,23 +142,33 @@ extension PartDao on AppDatabase {
     }
 
     for (int i = 0; i < images.length; i++) {
-      final fileName =
-          '${DateTime.now().millisecondsSinceEpoch}_${path.basename(images[i].path)}';
+      final file = images[i];
 
-      final saved = await images[i].copy('${imageDir.path}/$fileName');
+      String finalPath;
+
+      // 既に app ディレクトリ内ならコピーしない
+      if (file.path.startsWith(imageDir.path)) {
+        finalPath = file.path;
+      } else {
+        final fileName =
+            '${DateTime.now().millisecondsSinceEpoch}_${path.basename(file.path)}';
+
+        final saved = await file.copy('${imageDir.path}/$fileName');
+        finalPath = saved.path;
+      }
 
       await into(partsImages).insert(
         PartsImagesCompanion.insert(
           partId: partId,
           sortOrder: i,
-          imagePath: saved.path,
+          imagePath: finalPath,
         ),
       );
     }
   }
 
   Future<void> _deleteImagesByPart(int partId) async {
-    final rows = await (select(partsImages)
+    /*final rows = await (select(partsImages)
           ..where((t) => t.partId.equals(partId)))
         .get();
 
@@ -130,7 +178,7 @@ extension PartDao on AppDatabase {
         await file.delete();
       }
     }
-
+*/
     await (delete(partsImages)..where((t) => t.partId.equals(partId))).go();
   }
 

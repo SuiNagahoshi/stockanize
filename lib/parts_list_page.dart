@@ -54,7 +54,7 @@ class _PartsListPageState extends State<PartsListPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Parts')),
       body: StreamBuilder<List<Part>>(
-        stream: widget.db.watchAllParts(),
+        stream: widget.db.watchParts(),
         builder: (context, snapshot) {
           try {
             // エラーは必ず出力してユーザーにも見せる
@@ -243,7 +243,7 @@ class _HeroListItemPageState extends State<HeroListItemPage> {
     super.initState();
 
     // ① partsテーブルの変更を監視
-    _partsStream = widget.db.select(widget.db.parts).watch();
+    _partsStream = widget.db.watchParts();
 
     _loadCategories();
 
@@ -326,25 +326,44 @@ class _HeroListItemPageState extends State<HeroListItemPage> {
   }
 
   Widget _buildHeroImage() {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(10),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            height: 250,
-            width: double.infinity,
-            child: _loadingImages
-                ? const Center(child: CircularProgressIndicator())
-                : _images.isEmpty
+    return StreamBuilder<List<PartsImage>>(
+      stream: widget.db.watchImages(widget.part.id),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: const SizedBox(
+              height: 250,
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          );
+        }
+
+        // ★ ここで state を更新する代わりに直接代入
+        _images = snapshot.data!;
+        _loadingImages = false;
+
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                height: 250,
+                width: double.infinity,
+                child: _images.isEmpty
                     ? _buildPlaceholder()
                     : _buildImageCarousel(),
+              ),
+              if (_images.length > 1) _buildPageIndicator(),
+            ],
           ),
-          if (!_loadingImages && _images.length > 1) _buildPageIndicator(),
-        ],
-      ),
+        );
+      },
     );
   }
+
+
 
   Widget _buildPlaceholder() {
     return Container(
@@ -425,40 +444,55 @@ class _HeroListItemPageState extends State<HeroListItemPage> {
 
   @override
   Widget build(BuildContext context) {
-    final metadata = part.metadata;
-    debugPrint(metadata.toString());
+    print('Hero rebuild');
+    print("Hero DB instance: ${widget.db.hashCode}");
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(part.name),
-        actions: [
-          IconButton(
-              onPressed: () async {
-                final result = await Navigator.of(context).push(
-                  MaterialPageRoute(
-                      builder: (context) => EditPartPage(
-                            db: widget.db,
-                            part: part,
-                          )),
-                );
+    return StreamBuilder<List<Part>>(
+        stream: widget.db.watchParts(),//_partsStream,
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Scaffold(
+              body: CircularProgressIndicator(),
+            );
+          }
 
-                if (result != null && mounted) {
-                  setState(() {
-                    debugPrint(
-                        '  received id:${result.id} name:${result.name} code:${result.code} location:${result.location} stock:${result.stock}');
-                    part = result;
-                  });
-                }
-              },
-              icon: Icon(Icons.edit))
-        ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              /*Hero(
+          final parts = snapshot.data!;
+          var currentPart = parts.firstWhere((p) => p.id == widget.part.id);
+          final metadata = currentPart.metadata;
+
+          debugPrint(metadata.toString());
+
+          return Scaffold(
+            appBar: AppBar(
+              title: Text(currentPart.name),
+              actions: [
+                IconButton(
+                    onPressed: () async {
+                      final result = await Navigator.of(context).push(
+                        MaterialPageRoute(
+                            builder: (context) => EditPartPage(
+                                  db: widget.db,
+                                  part: currentPart,
+                                )),
+                      );
+
+                      if (result != null && mounted) {
+                        setState(() {
+                          debugPrint(
+                              '  received id:${result.id} name:${result.name} code:${result.code} location:${result.location} stock:${result.stock}');
+                          currentPart = result;
+                        });
+                      }
+                    },
+                    icon: Icon(Icons.edit))
+              ],
+            ),
+            body: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    /*Hero(
                 tag: widget.heroTag, //"hero_list_item_$index",
                 child: Container(
                   width: double.infinity,
@@ -472,61 +506,66 @@ class _HeroListItemPageState extends State<HeroListItemPage> {
                   ),
                 ),
               ),*/
-              _buildHeroImage(),
-              const SizedBox(height: 16),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Align(
-                    alignment: Alignment.center,
-                    child: Text(part.name,
-                        style: Theme.of(context).textTheme.headlineMedium),
-                  ),
-                  Text("${part.category ?? ""} / ${part.subcategory ?? ""}"),
-                  Column(
-                    children: [
-                      _buildInfoRow(part, part.category ?? "", "型番", part.code),
-                      _buildInfoRow(
-                          part, part.category ?? "", "在庫数", part.stock),
-                      _buildInfoRow(
-                          part, part.category ?? "", "保管場所", part.location),
-                      _buildLinkRow("データシート", part.datasheetUrl),
-                      _buildLinkRow("購入先", part.buyUrl),
-                      const Divider(),
-                      ...(metadata ?? {}).entries.map((e) => _buildInfoRow(
-                          part, part.category ?? "", e.key, e.value)),
-                      const SizedBox(
-                        height: 20,
-                      ),
-                      const Text(
-                        'QRコード',
-                      ),
-                      const SizedBox(
-                        height: 10,
-                      ),
-                      Center(
-                        /*child: QrImageView(
+                    _buildHeroImage(),
+                    const SizedBox(height: 16),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Align(
+                          alignment: Alignment.center,
+                          child: Text(currentPart.name,
+                              style:
+                                  Theme.of(context).textTheme.headlineMedium),
+                        ),
+                        Text(
+                            "${currentPart.category ?? ""} / ${currentPart.subcategory ?? ""}"),
+                        Column(
+                          children: [
+                            _buildInfoRow(currentPart, currentPart.category ?? "",
+                                "型番", currentPart.code),
+                            _buildInfoRow(currentPart, currentPart.category ?? "",
+                                "在庫数", currentPart.stock),
+                            _buildInfoRow(currentPart, currentPart.category ?? "",
+                                "保管場所", currentPart.location),
+                            _buildLinkRow("データシート", currentPart.datasheetUrl),
+                            _buildLinkRow("購入先", currentPart.buyUrl),
+                            const Divider(),
+                            ...(metadata ?? {}).entries.map((e) =>
+                                _buildInfoRow(currentPart, currentPart.category ?? "",
+                                    e.key, e.value)),
+                            const SizedBox(
+                              height: 20,
+                            ),
+                            const Text(
+                              'QRコード',
+                            ),
+                            const SizedBox(
+                              height: 10,
+                            ),
+                            Center(
+                              /*child: QrImageView(
                           data: part.id.toString(),
                           version: QrVersions.auto,
                           size: 180,
                           backgroundColor: Colors.white,
                         ),*/
-                        child: PartQrCard(
-                          partName: part.name,
-                          location: part.location,
-                          qrData: part.id.toString(),
-                          isHorizontal: true,
+                              child: PartQrCard(
+                                partName: currentPart.name,
+                                location: currentPart.location,
+                                qrData: currentPart.id.toString(),
+                                isHorizontal: true,
+                              ),
+                            )
+                          ],
                         ),
-                      )
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ],
-          ),
-        ),
-      ),
-    );
+            ),
+          );
+        });
   }
 
   /*

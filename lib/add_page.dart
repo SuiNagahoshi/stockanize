@@ -205,9 +205,12 @@ class _AddPartPageState extends State<AddPartPage>
       final options = List<String>.from(param["option"]);
       final currentValue = _selectedImplementation;
 
+      final controller =
+          _paramControllers.putIfAbsent(key, () => TextEditingController());
+
       return DropdownButtonFormField<String>(
         decoration: InputDecoration(labelText: label),
-        initialValue: currentValue,
+        initialValue: controller.text.isNotEmpty ? controller.text : null,
         items: options
             .map((opt) => DropdownMenuItem<String>(
                   value: opt,
@@ -217,6 +220,10 @@ class _AddPartPageState extends State<AddPartPage>
         onChanged: (val) {
           setState(() {
             _selectedImplementation = val;
+            controller.text = val ?? "";
+
+            debugPrint("=====selectImpl=====: $_selectedImplementation");
+            debugPrint("val: ${controller.text}");
           });
         },
       );
@@ -232,6 +239,8 @@ class _AddPartPageState extends State<AddPartPage>
                 implOptions.containsKey(_selectedImplementation)
             ? List<String>.from(implOptions[_selectedImplementation] ?? [])
             : <String>[];
+        debugPrint("=====add_package=====");
+        debugPrint("op: $options");
 
         final controller =
             _paramControllers.putIfAbsent(key, () => TextEditingController());
@@ -248,6 +257,7 @@ class _AddPartPageState extends State<AddPartPage>
           onChanged: (val) {
             setState(() {
               controller.text = val ?? "";
+              debugPrint("val: ${controller.text}");
             });
           },
         );
@@ -405,6 +415,7 @@ class _AddPartPageState extends State<AddPartPage>
     _paramControllers.forEach((key, controller) {
       final text = controller.text.trim();
       if (text.isNotEmpty) {
+        debugPrint("key: $key, text: $text");
         metadata[key] = text;
       }
     });
@@ -421,9 +432,9 @@ class _AddPartPageState extends State<AddPartPage>
 
     final companion = PartsCompanion(
       // category は nullable なので absent を使うパターン
-      category: _selectedCategory != null
-          ? Value(_selectedCategory!)
-          : const Value.absent(),
+      category: Value(_selectedCategory),
+
+      subcategory: Value(_selectedSubcategory),
 
       // name は non-null（テーブル定義に合わせて必須扱い） -> ただし Value で渡す
       name: Value(nameValue),
@@ -450,7 +461,8 @@ class _AddPartPageState extends State<AddPartPage>
       //await widget.db.insertPart(companion);
 
       await widget.db.transaction(() async {
-        // 1. Part 保存
+        widget.db.insertPartWithImages(companion, _images);
+        /* // 1. Part 保存
         final partId = await widget.db.insertPart(companion);
 
         // 2. 画像保存
@@ -477,8 +489,8 @@ class _AddPartPageState extends State<AddPartPage>
                   imagePath: savedFile.path,
                   sortOrder: i,
                 ),
-              );
-        }
+          );
+        }*/
       });
 
       debugPrint("insert");
