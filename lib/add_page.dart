@@ -1,9 +1,14 @@
 import 'dart:convert';
+import 'dart:io';
+
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:stockanize/db/parts.dart';
+import 'package:image/image.dart' as img;
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 
+import 'package:stockanize/db/parts.dart';
 import 'db/database.dart';
 
 class AddPartPage extends StatefulWidget {
@@ -14,7 +19,8 @@ class AddPartPage extends StatefulWidget {
   State<AddPartPage> createState() => _AddPartPageState();
 }
 
-class _AddPartPageState extends State<AddPartPage> {
+class _AddPartPageState extends State<AddPartPage>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
 
   // 共通フィールド
@@ -32,10 +38,32 @@ class _AddPartPageState extends State<AddPartPage> {
   String? _selectedImplementation; // 選択中の実装形式
   final Map<String, TextEditingController> _paramControllers = {};
 
+  //List<XFile> _images = [];
+  final ImagePicker _picker = ImagePicker();
+
   @override
   void initState() {
     super.initState();
     _loadCategories();
+
+    _dragAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 250),
+    );
+
+    _dragScale = Tween<double>(begin: 1.0, end: 0.90).animate(
+      CurvedAnimation(
+        parent: _dragAnimController,
+        curve: Curves.easeOut,
+      ),
+    );
+
+    _dragOpacity = Tween<double>(begin: 1.0, end: 0.7).animate(
+      CurvedAnimation(
+        parent: _dragAnimController,
+        curve: Curves.easeOut,
+      ),
+    );
   }
 
   @override
@@ -179,9 +207,10 @@ class _AddPartPageState extends State<AddPartPage> {
 
       final controller =
           _paramControllers.putIfAbsent(key, () => TextEditingController());
+
       return DropdownButtonFormField<String>(
         decoration: InputDecoration(labelText: label),
-        initialValue: currentValue,
+        initialValue: controller.text.isNotEmpty ? controller.text : null,
         items: options
             .map((opt) => DropdownMenuItem<String>(
                   value: opt,
@@ -190,8 +219,11 @@ class _AddPartPageState extends State<AddPartPage> {
             .toList(),
         onChanged: (val) {
           setState(() {
-            controller.text = val ?? "";
             _selectedImplementation = val;
+            controller.text = val ?? "";
+
+            debugPrint("=====selectImpl=====: $_selectedImplementation");
+            debugPrint("val: ${controller.text}");
           });
         },
       );
@@ -207,6 +239,8 @@ class _AddPartPageState extends State<AddPartPage> {
                 implOptions.containsKey(_selectedImplementation)
             ? List<String>.from(implOptions[_selectedImplementation] ?? [])
             : <String>[];
+        debugPrint("=====add_package=====");
+        debugPrint("op: $options");
 
         final controller =
             _paramControllers.putIfAbsent(key, () => TextEditingController());
@@ -223,6 +257,7 @@ class _AddPartPageState extends State<AddPartPage> {
           onChanged: (val) {
             setState(() {
               controller.text = val ?? "";
+              debugPrint("val: ${controller.text}");
             });
           },
         );
@@ -241,9 +276,7 @@ class _AddPartPageState extends State<AddPartPage> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              label,
-            ),
+            Text(label),
             const SizedBox(height: 6),
             ...subParams.map((e) => _buildParamRow(e.key, e.value)),
           ],
@@ -274,63 +307,45 @@ class _AddPartPageState extends State<AddPartPage> {
 
       return StatefulBuilder(
         builder: (context, setState) {
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    DropdownButtonFormField<String>(
-                      initialValue:
-                          selectedOption != "" ? selectedOption : null,
-                      decoration: InputDecoration(labelText: param["label"]),
-                      items: options.map((opt) {
-                        return DropdownMenuItem<String>(
-                          value: opt,
-                          child: Text(opt),
-                        );
-                      }).toList(),
-                      onChanged: (newValue) {
-                        setState(() {
-                          selectedOption = newValue;
-                          controller.text = newValue ?? "";
-                          if (newValue != "その他") {
-                            otherController.clear();
-                          }
-                        });
-                      },
-                    ),
-                    if (selectedOption == "その他") ...[
-                      const SizedBox(height: 6),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: otherController,
-                              decoration:
-                                  InputDecoration(labelText: "その他（直接入力）"),
-                              onChanged: (text) {
-                                controller.text = text;
-                              },
-                            ),
-                          ),
-                        ],
-                      )
-                    ],
-                  ],
-                ),
+              DropdownButtonFormField<String>(
+                initialValue: selectedOption != "" ? selectedOption : null,
+                decoration: InputDecoration(labelText: param["label"]),
+                items: options.map((opt) {
+                  return DropdownMenuItem<String>(
+                    value: opt,
+                    child: Text(opt),
+                  );
+                }).toList(),
+                onChanged: (newValue) {
+                  setState(() {
+                    selectedOption = newValue;
+                    controller.text = newValue ?? "";
+                    if (newValue != "その他") {
+                      otherController.clear();
+                    }
+                  });
+                },
               ),
-              if (unit != null) ...[
-                const SizedBox(
-                  width: 8,
-                ),
-                Padding(
-                  padding: EdgeInsets.only(left: 10),
-                  child: Text(unit),
+              if (selectedOption == "その他") ...[
+                const SizedBox(height: 6),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: otherController,
+                        decoration: InputDecoration(labelText: "その他（直接入力）"),
+                        onChanged: (text) {
+                          controller.text = text;
+                        },
+                      ),
+                    ),
+                  ],
                 )
-              ]
+              ],
             ],
           );
         },
@@ -358,6 +373,32 @@ class _AddPartPageState extends State<AddPartPage> {
     );
   }
 
+  Future<String> saveImageToAppDir(File original) async {
+    final bytes = await original.readAsBytes();
+    final decoded = img.decodeImage(bytes);
+    if (decoded == null) {
+      throw Exception('画像のデコードに失敗');
+    }
+
+    // 横1600pxを上限に縮小（縦横比維持）
+    final resized =
+        decoded.width > 1600 ? img.copyResize(decoded, width: 1600) : decoded;
+
+    final dir = await getApplicationDocumentsDirectory();
+    final imageDir = Directory('${dir.path}/parts_images');
+
+    if (!await imageDir.exists()) {
+      await imageDir.create(recursive: true);
+    }
+
+    final fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+    final file = File('${imageDir.path}/$fileName');
+    await file.writeAsBytes(img.encodeJpg(resized, quality: 85));
+
+    return file.path;
+  }
+
   Future<void> _savePart() async {
     debugPrint("=== _savePart START ===");
     if (!_formKey.currentState!.validate()) {
@@ -366,7 +407,6 @@ class _AddPartPageState extends State<AddPartPage> {
     }
 
     debugPrint("selected category: $_selectedCategory");
-    debugPrint("selected subcategory: $_selectedSubcategory");
     debugPrint("name: ${_nameController.text}");
     debugPrint("metadata controllers: $_paramControllers");
 
@@ -375,6 +415,7 @@ class _AddPartPageState extends State<AddPartPage> {
     _paramControllers.forEach((key, controller) {
       final text = controller.text.trim();
       if (text.isNotEmpty) {
+        debugPrint("key: $key, text: $text");
         metadata[key] = text;
       }
     });
@@ -391,13 +432,9 @@ class _AddPartPageState extends State<AddPartPage> {
 
     final companion = PartsCompanion(
       // category は nullable なので absent を使うパターン
-      category: _selectedCategory != null
-          ? Value(_selectedCategory!)
-          : const Value.absent(),
+      category: Value(_selectedCategory),
 
-      subcategory: _selectedSubcategory != null
-          ? Value(_selectedSubcategory!)
-          : const Value.absent(),
+      subcategory: Value(_selectedSubcategory),
 
       // name は non-null（テーブル定義に合わせて必須扱い） -> ただし Value で渡す
       name: Value(nameValue),
@@ -415,25 +452,57 @@ class _AddPartPageState extends State<AddPartPage> {
       buyUrl: buyUrlText.isNotEmpty ? Value(buyUrlText) : const Value.absent(),
 
       // metadata 列は non-null（現状）を想定。空でも {} を渡す。
-      metadata: metadata.isNotEmpty ? Value(metadata) : const Value.absent(),
+      metadata: Value(metadata),
     );
 
     debugPrint("companion: $companion");
 
     try {
-      await widget.db.insertPart(companion);
-      debugPrint("insert: $companion");
+      //await widget.db.insertPart(companion);
+
+      await widget.db.transaction(() async {
+        widget.db.insertPartWithImages(companion, _images);
+        /* // 1. Part 保存
+        final partId = await widget.db.insertPart(companion);
+
+        // 2. 画像保存
+        for (int i = 0; i < _images.length; i++) {
+          final srcFile = File(_images[i].file.path);
+
+          // app 領域へコピー
+          final dir = await getApplicationDocumentsDirectory();
+          final imageDir = Directory('${dir.path}/part_images/$partId');
+          if (!await imageDir.exists()) {
+            await imageDir.create(recursive: true);
+          }
+
+          final ext = srcFile.path.split('.').last;
+          final dstPath =
+              '${imageDir.path}/${DateTime.now().millisecondsSinceEpoch}_$i.$ext';
+
+          final savedFile = await srcFile.copy(dstPath);
+
+          // DB 登録（順番付き）
+          await widget.db.into(widget.db.partsImages).insert(
+                PartsImagesCompanion.insert(
+                  partId: partId,
+                  imagePath: savedFile.path,
+                  sortOrder: i,
+                ),
+          );
+        }*/
+      });
+
+      debugPrint("insert");
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("部品を登録しました")),
       );
       debugPrint("snackbar");
-      debugPrint(metadata.toString());
 
       // 入力フォームをリセット（カテゴリも含めて）
       setState(() {
         _selectedCategory = null; // カテゴリもリセット
-        _selectedSubcategory = null;
         _nameController.clear();
         _codeController.clear();
         _stockController.clear();
@@ -443,6 +512,7 @@ class _AddPartPageState extends State<AddPartPage> {
         for (final controller in _paramControllers.values) {
           controller.clear();
         }
+        _images.clear(); // ★ 画像もリセット
       });
     } catch (e, st) {
       debugPrint('insertPart error: $e\n$st');
@@ -453,6 +523,361 @@ class _AddPartPageState extends State<AddPartPage> {
         Navigator.of(context).pop(false); // 失敗したら false を返す
       }
     }
+  }
+
+  final ScrollController _scrollController = ScrollController();
+  final GlobalKey _scrollKey = GlobalKey();
+  int? _draggingIndex;
+  int? _targetIndex;
+  bool _isDraggingAtTail = false;
+
+  late final AnimationController _dragAnimController;
+  late final Animation<double> _dragScale;
+  late final Animation<double> _dragOpacity;
+
+  final List<ImageItem> _images = [];
+
+  Future<void> _pickFromGallery() async {
+    final List<XFile> picked = await _picker.pickMultiImage();
+    if (picked.isNotEmpty) {
+      setState(() {
+        for (final f in picked) {
+          _images.add(ImageItem(f));
+        }
+      });
+    }
+  }
+
+  Future<void> _takePhoto() async {
+    final XFile? picked = await _picker.pickImage(source: ImageSource.camera);
+    if (picked != null) {
+      setState(() {
+        _images.add(ImageItem(picked));
+      });
+    }
+  }
+
+  void _removeImage(int index) {
+    setState(() {
+      _images.removeAt(index);
+
+      if (_draggingIndex != null) {
+        if (_draggingIndex == index) {
+          _draggingIndex = null;
+          _targetIndex = null;
+        } else if (_draggingIndex! > index) {
+          _draggingIndex = _draggingIndex! - 1;
+        }
+      }
+
+      if (_targetIndex != null && _targetIndex! > index) {
+        _targetIndex = _targetIndex! - 1;
+      }
+    });
+  }
+
+  RenderBox? _getScrollRenderBox() {
+    final ctx = _scrollKey.currentContext;
+    if (ctx == null) return null;
+
+    final renderObject = ctx.findRenderObject();
+    if (renderObject == null || !renderObject.attached) {
+      return null;
+    }
+
+    return renderObject as RenderBox;
+  }
+
+  void _handleAutoScroll(Offset globalPosition) {
+    final renderBox = _getScrollRenderBox();
+    if (renderBox == null) return;
+
+    final local = renderBox.globalToLocal(globalPosition);
+
+    // 実コンテンツ幅
+    double contentWidth = 0;
+    for (final item in _images) {
+      contentWidth += (item.width ?? 100);
+    }
+
+    const tailHitMargin = 16.0;
+
+    // --- 最後尾判定 ---
+    final atTail = local.dx > contentWidth - tailHitMargin;
+
+    if (_isDraggingAtTail != atTail) {
+      setState(() {
+        _isDraggingAtTail = atTail;
+        _targetIndex = atTail ? _images.length : _targetIndex;
+      });
+    }
+
+    // --- auto-scroll ---
+    const edgeThreshold = 40;
+    const scrollSpeed = 12;
+
+    if (local.dx < edgeThreshold) {
+      _scrollController.jumpTo(
+        (_scrollController.offset - scrollSpeed)
+            .clamp(0.0, _scrollController.position.maxScrollExtent),
+      );
+    } else if (local.dx > renderBox.size.width - edgeThreshold) {
+      _scrollController.jumpTo(
+        (_scrollController.offset + scrollSpeed)
+            .clamp(0.0, _scrollController.position.maxScrollExtent),
+      );
+    }
+  }
+
+  Widget _childDrag(int index) {
+    return SizedBox(
+      width: _images[index].width ?? 100, // 初回保険
+      height: 200,
+    );
+  }
+
+  Widget _imageItem(int index) {
+    final bool isDragging = _draggingIndex == index;
+
+    return AnimatedScale(
+      scale: isDragging ? 0.9 : 1.0,
+      duration: const Duration(seconds: 1),
+      curve: Curves.easeOut,
+      child: AnimatedOpacity(
+        opacity: isDragging ? 0.4 : 1.0,
+        duration: const Duration(seconds: 1),
+        child: Padding(
+          padding: const EdgeInsets.only(right: 12),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Image.file(
+                File(_images[index].file.path),
+                key: _images[index].key,
+                height: 100,
+                fit: BoxFit.fitHeight,
+                frameBuilder: (context, child, frame, _) {
+                  // ★最初にレイアウトされた瞬間だけ width を保存
+                  if (frame != null && _images[index].width == null) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      final ctx = _images[index].key.currentContext;
+                      if (ctx == null) return;
+                      final box = ctx.findRenderObject() as RenderBox;
+                      _images[index].width = box.size.width;
+                    });
+                  }
+                  return child;
+                },
+              ),
+              Positioned(
+                top: -6,
+                right: -6,
+                child: IconButton(
+                  icon: const Icon(Icons.close, size: 18, color: Colors.red),
+                  onPressed: () {
+                    setState(() => _removeImage(index));
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImageItem(int index) {
+    final isLast = index == _images.length - 1;
+    const tailAreaWidth = 24.0;
+
+    return LongPressDraggable<int>(
+      data: index,
+      onDragStarted: () {
+        _dragAnimController.forward(from: 0);
+        _draggingIndex = index;
+      },
+      onDragUpdate: (details) {
+        _handleAutoScroll(details.globalPosition);
+      },
+      onDragEnd: (_) {
+        if (_draggingIndex != null &&
+            _targetIndex != null &&
+            _draggingIndex != _targetIndex) {
+          setState(() {
+            final item = _images.removeAt(_draggingIndex!);
+            final insertIndex =
+                _targetIndex! > _images.length ? _images.length : _targetIndex!;
+            _images.insert(insertIndex, item);
+          });
+        }
+
+        setState(() {
+          _draggingIndex = null;
+          _targetIndex = null;
+        });
+      },
+      feedback: _dragFeedback(index),
+      childWhenDragging: _childDrag(index),
+      child: DragTarget<int>(onWillAccept: (from) {
+        if (from == null || from == index) return false;
+
+        setState(() {
+          _targetIndex = index;
+        });
+        return true;
+      }, onMove: (details) {
+        // ★ 最後の画像の「尾部」に入ったら最後尾扱い
+        if (isLast) {
+          final box = context.findRenderObject() as RenderBox?;
+          if (box != null) {
+            final local = box.globalToLocal(details.offset);
+            if (local.dx > box.size.width - tailAreaWidth) {
+              if (_targetIndex != _images.length) {
+                setState(() {
+                  _targetIndex = _images.length;
+                });
+              }
+            }
+          }
+        }
+      }, builder: (context, _, __) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 前方挿入ライン
+            if (_draggingIndex != null && _targetIndex == index)
+              _insertIndicator(),
+
+            _staticImageView(index),
+
+            // ★ 最後尾専用エリア
+            if (isLast)
+              SizedBox(
+                width: tailAreaWidth,
+                child: _draggingIndex != null && _targetIndex == _images.length
+                    ? Align(
+                        alignment: Alignment.centerLeft,
+                        child: _insertIndicator(),
+                      )
+                    : null,
+              ),
+          ],
+        );
+      }),
+    );
+  }
+
+  Widget _staticImageView(int index) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 12),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Image.file(
+            File(_images[index].file.path),
+            key: _images[index].key,
+            height: 200,
+            fit: BoxFit.fitHeight,
+            frameBuilder: (context, child, frame, _) {
+              // ★最初にレイアウトされた瞬間だけ width を保存
+              if (frame != null && _images[index].width == null) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  final ctx = _images[index].key.currentContext;
+                  if (ctx == null) return;
+                  final box = ctx.findRenderObject() as RenderBox;
+                  _images[index].width = box.size.width;
+                });
+              }
+              return child;
+            },
+          ),
+          Positioned(
+            top: -6,
+            right: -6,
+            child: IconButton(
+              icon: const Icon(Icons.close, size: 18, color: Colors.red),
+              onPressed: () {
+                setState(() => _images.removeAt(index));
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _imageView(int index, {double scale = 1.0, double opacity = 1.0}) {
+    return Opacity(
+      opacity: opacity,
+      child: AnimatedScale(
+        scale: scale,
+        duration: const Duration(seconds: 1),
+        child: Padding(
+          padding: const EdgeInsets.only(right: 12),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Image.file(
+                File(_images[index].file.path),
+                key: _images[index].key,
+                height: 200,
+                fit: BoxFit.fitHeight,
+                frameBuilder: (context, child, frame, _) {
+                  // ★最初にレイアウトされた瞬間だけ width を保存
+                  if (frame != null && _images[index].width == null) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      final ctx = _images[index].key.currentContext;
+                      if (ctx == null) return;
+                      final box = ctx.findRenderObject() as RenderBox;
+                      _images[index].width = box.size.width;
+                    });
+                  }
+                  return child;
+                },
+              ),
+              Positioned(
+                top: -6,
+                right: -6,
+                child: IconButton(
+                  icon: const Icon(Icons.close, size: 18, color: Colors.red),
+                  onPressed: () {
+                    setState(() => _removeImage(index));
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _dragFeedback(int index) {
+    return AnimatedBuilder(
+      animation: _dragAnimController,
+      builder: (context, child) {
+        return FadeTransition(
+          opacity: _dragOpacity,
+          child: ScaleTransition(
+            scale: _dragScale,
+            child: child,
+          ),
+        );
+      },
+      child: Material(
+        color: Colors.transparent,
+        child: _staticImageView(index),
+      ),
+    );
+  }
+
+  Widget _insertIndicator() {
+    return Container(
+      width: 2,
+      height: 200,
+      margin: const EdgeInsets.only(right: 12),
+      color: Colors.blueAccent,
+    );
   }
 
   @override
@@ -466,6 +891,55 @@ class _AddPartPageState extends State<AddPartPage> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      ElevatedButton(
+                        onPressed: _pickFromGallery,
+                        child: const Text('ギャラリー'),
+                      ),
+                      ElevatedButton(
+                        onPressed: _takePhoto,
+                        child: const Text('カメラ'),
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+
+                  SizedBox(
+                    key: _scrollKey,
+                    height: 200,
+                    child: SingleChildScrollView(
+                      controller: _scrollController,
+                      scrollDirection: Axis.horizontal,
+                      child: Row(children: [
+                        ...List.generate(
+                          _images.length,
+                          (index) => _buildImageItem(index),
+                        ),
+                        //_buildEndDragTarget(),
+                        // ★ 最後尾専用の DragTarget（透明）
+                        DragTarget<int>(
+                          onWillAccept: (from) {
+                            if (from == null) return false;
+                            setState(() {
+                              _targetIndex = _images.length;
+                            });
+                            return true;
+                          },
+                          builder: (_, __, ___) {
+                            return SizedBox(
+                              width: 24, // ← ヒットテスト用（描画はしない）
+                              height: 200,
+                            );
+                          },
+                        ),
+                      ]),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
                   // ===== メインカテゴリ =====
                   DropdownButtonFormField<String>(
                     decoration: const InputDecoration(labelText: "カテゴリ"),
@@ -544,16 +1018,23 @@ class _AddPartPageState extends State<AddPartPage> {
                   ],
 
                   const SizedBox(height: 20),
-                  SafeArea(
-                    child: ElevatedButton.icon(
-                      onPressed: _savePart,
-                      icon: const Icon(Icons.save),
-                      label: const Text("登録"),
-                    ),
-                  )
+                  ElevatedButton.icon(
+                    onPressed: _savePart,
+                    icon: const Icon(Icons.save),
+                    label: const Text("登録"),
+                  ),
                 ],
               ),
             ),
     );
   }
+}
+
+class ImageItem {
+  ImageItem(this.file) : key = GlobalKey();
+
+  final XFile file;
+  final GlobalKey key;
+
+  double? width;
 }
