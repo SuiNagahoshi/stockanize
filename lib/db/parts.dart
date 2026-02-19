@@ -50,11 +50,10 @@ extension PartDao on AppDatabase {
 
   Stream<List<PartsImage>> watchImages(int partId) {
     return (select(partsImages)
-      ..where((t) => t.partId.equals(partId))
-      ..orderBy([(t) => OrderingTerm(expression: t.sortOrder)]))
+          ..where((t) => t.partId.equals(partId))
+          ..orderBy([(t) => OrderingTerm(expression: t.sortOrder)]))
         .watch();
   }
-
 
   Future<Part?> getPartById(int id) =>
       (select(parts)..where((tbl) => tbl.id.equals(id))).getSingleOrNull();

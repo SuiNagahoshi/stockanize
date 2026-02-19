@@ -363,8 +363,6 @@ class _HeroListItemPageState extends State<HeroListItemPage> {
     );
   }
 
-
-
   Widget _buildPlaceholder() {
     return Container(
       width: double.infinity,
@@ -448,7 +446,7 @@ class _HeroListItemPageState extends State<HeroListItemPage> {
     print("Hero DB instance: ${widget.db.hashCode}");
 
     return StreamBuilder<List<Part>>(
-        stream: widget.db.watchParts(),//_partsStream,
+        stream: widget.db.watchParts(), //_partsStream,
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return const Scaffold(
@@ -521,18 +519,30 @@ class _HeroListItemPageState extends State<HeroListItemPage> {
                             "${currentPart.category ?? ""} / ${currentPart.subcategory ?? ""}"),
                         Column(
                           children: [
-                            _buildInfoRow(currentPart, currentPart.category ?? "",
-                                "型番", currentPart.code),
-                            _buildInfoRow(currentPart, currentPart.category ?? "",
-                                "在庫数", currentPart.stock),
-                            _buildInfoRow(currentPart, currentPart.category ?? "",
-                                "保管場所", currentPart.location),
+                            _buildInfoRow(
+                                currentPart,
+                                currentPart.category ?? "",
+                                "型番",
+                                currentPart.code),
+                            _buildInfoRow(
+                                currentPart,
+                                currentPart.category ?? "",
+                                "在庫数",
+                                currentPart.stock),
+                            _buildInfoRow(
+                                currentPart,
+                                currentPart.category ?? "",
+                                "保管場所",
+                                currentPart.location),
                             _buildLinkRow("データシート", currentPart.datasheetUrl),
                             _buildLinkRow("購入先", currentPart.buyUrl),
                             const Divider(),
                             ...(metadata ?? {}).entries.map((e) =>
-                                _buildInfoRow(currentPart, currentPart.category ?? "",
-                                    e.key, e.value)),
+                                _buildInfoRow(
+                                    currentPart,
+                                    currentPart.category ?? "",
+                                    e.key,
+                                    e.value)),
                             const SizedBox(
                               height: 20,
                             ),
