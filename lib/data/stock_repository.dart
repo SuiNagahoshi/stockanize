@@ -25,6 +25,7 @@ abstract class StockRepository {
   Future<int> createGroup(String name, {String? description});
   Future<void> renameGroup(int groupId, String name);
   Future<void> deleteGroup(int groupId);
+  Future<void> leaveGroup(int groupId);
 
   Stream<List<GroupMemberView>> watchGroupMembers(int groupId);
   Future<int> inviteUserToGroup({

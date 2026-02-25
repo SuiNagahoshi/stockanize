@@ -349,6 +349,27 @@ extension AccountControlDao on AppDatabase {
     await (delete(userGroups)..where((g) => g.id.equals(groupId))).go();
   }
 
+  Future<void> leaveGroup(int groupId) async {
+    final userId = currentUserId;
+    if (userId == null) {
+      throw StateError('ログインが必要です');
+    }
+
+    final membership = await (select(groupMembers)
+          ..where((m) => m.groupId.equals(groupId))
+          ..where((m) => m.userId.equals(userId)))
+        .getSingleOrNull();
+    if (membership == null) {
+      throw StateError('既にこのグループに参加していません');
+    }
+
+    await (delete(groupMembers)..where((m) => m.id.equals(membership.id))).go();
+
+    if (currentGroupId == groupId) {
+      await setActiveGroup(null);
+    }
+  }
+
   Stream<List<GroupMemberView>> watchGroupMembers(int groupId) {
     final query = select(groupMembers).join([
       innerJoin(users, users.id.equalsExp(groupMembers.userId)),

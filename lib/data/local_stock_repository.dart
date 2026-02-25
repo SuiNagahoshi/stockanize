@@ -75,6 +75,9 @@ class LocalStockRepository implements StockRepository {
   Future<void> deleteGroup(int groupId) => _db.deleteGroup(groupId);
 
   @override
+  Future<void> leaveGroup(int groupId) => _db.leaveGroup(groupId);
+
+  @override
   Stream<List<GroupMemberView>> watchGroupMembers(int groupId) =>
       _db.watchGroupMembers(groupId);
 
