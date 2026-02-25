@@ -65,22 +65,14 @@ extension AccountControlDao on AppDatabase {
       ),
     );
 
-    final defaultMemberCount = await (select(accountMembers)
-          ..where((m) => m.accountId.equals(AppDatabase.defaultAccountId)))
-        .get()
-        .then((rows) => rows.length);
-
-    if (defaultMemberCount == 0) {
-      await into(accountMembers).insert(
-        AccountMembersCompanion.insert(
-          accountId: AppDatabase.defaultAccountId,
-          userId: userId,
-          role: const Value('owner'),
-        ),
-      );
-    }
-
-    await setActiveUser(userId);
+    final createdUser =
+        await (select(users)..where((u) => u.id.equals(userId))).getSingle();
+    final personalAccountId = await _ensurePersonalAccount(createdUser);
+    await setActiveScope(
+      accountId: personalAccountId,
+      groupId: null,
+      userId: createdUser.id,
+    );
     return userId;
   }
 
@@ -107,7 +99,12 @@ extension AccountControlDao on AppDatabase {
       throw StateError('パスワードが正しくありません');
     }
 
-    await setActiveUser(user.id);
+    final personalAccountId = await _ensurePersonalAccount(user);
+    await setActiveScope(
+      accountId: personalAccountId,
+      groupId: null,
+      userId: user.id,
+    );
   }
 
   Future<void> logout() async {
@@ -558,17 +555,9 @@ extension AccountControlDao on AppDatabase {
   }
 
   void _validatePassword(String password) {
-    final hasUpper = RegExp(r'[A-Z]').hasMatch(password);
-    final hasLower = RegExp(r'[a-z]').hasMatch(password);
-    final hasDigit = RegExp(r'[0-9]').hasMatch(password);
-    final hasSymbol = RegExp(r'[^A-Za-z0-9]').hasMatch(password);
-
-    if (password.length < 12 ||
-        !hasUpper ||
-        !hasLower ||
-        !hasDigit ||
-        !hasSymbol) {
-      throw ArgumentError('パスワードは12文字以上かつ大小英字/数字/記号を含めてください');
+    final hasAllowed = RegExp(r'^[\x21-\x7E]+$').hasMatch(password);
+    if (password.length < 8 || !hasAllowed) {
+      throw ArgumentError('パスワードは8文字以上の英数字もしくは記号を使用してください');
     }
   }
 
@@ -576,5 +565,27 @@ extension AccountControlDao on AppDatabase {
     final random = Random.secure();
     final value = List<int>.generate(16, (_) => random.nextInt(256));
     return value.map((e) => e.toRadixString(16).padLeft(2, '0')).join();
+  }
+
+  Future<String> _ensurePersonalAccount(User user) async {
+    final accountId = 'acc-user-${user.id}';
+    final accountName = '${user.username} personal';
+
+    await into(accounts).insertOnConflictUpdate(
+      AccountsCompanion.insert(
+        id: accountId,
+        name: accountName,
+      ),
+    );
+
+    await into(accountMembers).insertOnConflictUpdate(
+      AccountMembersCompanion.insert(
+        accountId: accountId,
+        userId: user.id,
+        role: const Value('owner'),
+      ),
+    );
+
+    return accountId;
   }
 }
