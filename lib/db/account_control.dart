@@ -296,7 +296,7 @@ extension AccountControlDao on AppDatabase {
 
   Future<int> createGroup(String name, {String? description}) async {
     final user = await _requireCurrentUser();
-    await _ensureAccountMember(currentAccountId);
+    final accountId = await _ensureUsableAccountForUser(user);
 
     final normalized = name.trim();
     if (normalized.isEmpty) {
@@ -305,7 +305,7 @@ extension AccountControlDao on AppDatabase {
 
     final groupId = await into(userGroups).insert(
       UserGroupsCompanion.insert(
-        accountId: currentAccountId,
+        accountId: accountId,
         name: normalized,
         description: Value(
           description?.trim().isEmpty ?? true ? null : description!.trim(),
@@ -320,6 +320,11 @@ extension AccountControlDao on AppDatabase {
         role: const Value('admin'),
       ),
     );
+
+    if (accountId != currentAccountId) {
+      await setActiveScope(
+          accountId: accountId, groupId: groupId, userId: user.id);
+    }
 
     return groupId;
   }
@@ -608,5 +613,25 @@ extension AccountControlDao on AppDatabase {
     );
 
     return accountId;
+  }
+
+  Future<String> _ensureUsableAccountForUser(User user) async {
+    final currentMembership = await (select(accountMembers)
+          ..where((m) => m.accountId.equals(currentAccountId))
+          ..where((m) => m.userId.equals(user.id)))
+        .getSingleOrNull();
+    if (currentMembership != null) {
+      return currentAccountId;
+    }
+
+    final memberships = await (select(accountMembers)
+          ..where((m) => m.userId.equals(user.id))
+          ..orderBy([(m) => OrderingTerm.asc(m.createdAt)]))
+        .get();
+    if (memberships.isNotEmpty) {
+      return memberships.first.accountId;
+    }
+
+    return _ensurePersonalAccount(user);
   }
 }
