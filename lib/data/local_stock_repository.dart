@@ -15,10 +15,42 @@ class LocalStockRepository implements StockRepository {
   Future<int> deletePart(int id) => _db.deletePart(id);
 
   @override
+  Stream<List<User>> watchUsers() => _db.watchUsers();
+
+  @override
+  Future<int> registerUser({
+    required String username,
+    required String password,
+  }) =>
+      _db.registerUser(username: username, password: password);
+
+  @override
+  Future<void> login({required String username, required String password}) =>
+      _db.login(username: username, password: password);
+
+  @override
+  Future<void> logout() => _db.logout();
+
+  @override
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) =>
+      _db.changePassword(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      );
+
+  @override
+  Future<User?> getCurrentUser() => _db.getCurrentUser();
+
+  @override
   Stream<List<Account>> watchAccounts() => _db.watchAccounts();
 
   @override
-  Future<String> createAccount(String name) => _db.createAccount(name);
+  Future<String> createAccount(String name,
+          {required String currentPassword}) =>
+      _db.createAccount(name, currentPassword: currentPassword);
 
   @override
   Future<void> renameAccount(String accountId, String newName) =>
@@ -43,9 +75,33 @@ class LocalStockRepository implements StockRepository {
   Future<void> deleteGroup(int groupId) => _db.deleteGroup(groupId);
 
   @override
+  Stream<List<GroupMemberView>> watchGroupMembers(int groupId) =>
+      _db.watchGroupMembers(groupId);
+
+  @override
+  Future<int> inviteUserToGroup({
+    required int groupId,
+    required String inviteeUsername,
+  }) =>
+      _db.inviteUserToGroup(groupId: groupId, inviteeUsername: inviteeUsername);
+
+  @override
+  Stream<List<GroupInviteView>> watchPendingInvitesForCurrentUser() =>
+      _db.watchPendingInvitesForCurrentUser();
+
+  @override
+  Future<void> acceptInvite(int inviteId) => _db.acceptInvite(inviteId);
+
+  @override
+  Future<void> declineInvite(int inviteId) => _db.declineInvite(inviteId);
+
+  @override
   Future<void> setActiveAccount(String accountId) =>
       _db.setActiveAccount(accountId);
 
   @override
   Future<void> setActiveGroup(int? groupId) => _db.setActiveGroup(groupId);
+
+  @override
+  Future<void> setActiveUser(int? userId) => _db.setActiveUser(userId);
 }

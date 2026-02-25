@@ -8,6 +8,14 @@ import 'package:stockanize/db/database.dart';
 
 import '../add_page.dart';
 
+class Users extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get username => text().unique()();
+  TextColumn get passwordHash => text()();
+  TextColumn get passwordSalt => text()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+}
+
 class Accounts extends Table {
   TextColumn get id => text()();
   TextColumn get name => text().unique()();
@@ -15,6 +23,19 @@ class Accounts extends Table {
 
   @override
   Set<Column<Object>>? get primaryKey => {id};
+}
+
+class AccountMembers extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get accountId =>
+      text().references(Accounts, #id, onDelete: KeyAction.cascade)();
+  IntColumn get userId =>
+      integer().references(Users, #id, onDelete: KeyAction.cascade)();
+  TextColumn get role => text().withDefault(const Constant('owner'))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  List<String> get customConstraints => ['UNIQUE(account_id, user_id)'];
 }
 
 class UserGroups extends Table {
@@ -29,12 +50,42 @@ class UserGroups extends Table {
   List<String> get customConstraints => ['UNIQUE(account_id, name)'];
 }
 
+class GroupMembers extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get groupId =>
+      integer().references(UserGroups, #id, onDelete: KeyAction.cascade)();
+  IntColumn get userId =>
+      integer().references(Users, #id, onDelete: KeyAction.cascade)();
+  TextColumn get role => text().withDefault(const Constant('member'))();
+  DateTimeColumn get joinedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  List<String> get customConstraints => ['UNIQUE(group_id, user_id)'];
+}
+
+class GroupInvites extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get groupId =>
+      integer().references(UserGroups, #id, onDelete: KeyAction.cascade)();
+  IntColumn get invitedByUserId => integer()
+      .references(Users, #id, onDelete: KeyAction.setNull)
+      .nullable()();
+  TextColumn get inviteeUsername => text()();
+  TextColumn get token => text().unique()();
+  DateTimeColumn get expiresAt => dateTime()();
+  TextColumn get status => text().withDefault(const Constant('pending'))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+}
+
 class AppContexts extends Table {
   IntColumn get id => integer()();
   TextColumn get activeAccountId => text().references(Accounts, #id)();
   IntColumn get activeGroupId => integer()
       .nullable()
       .references(UserGroups, #id, onDelete: KeyAction.setNull)();
+  IntColumn get activeUserId => integer()
+      .nullable()
+      .references(Users, #id, onDelete: KeyAction.setNull)();
 
   @override
   Set<Column<Object>>? get primaryKey => {id};
@@ -52,7 +103,7 @@ class Parts extends Table {
   TextColumn get category => text().nullable()();
   TextColumn get name => text()();
   TextColumn get code => text().nullable()();
-  IntColumn get stock => integer().withDefault(Constant(0))();
+  IntColumn get stock => integer().withDefault(const Constant(0))();
   TextColumn get location => text().nullable()();
   TextColumn get datasheetUrl => text().nullable()();
   TextColumn get buyUrl => text().nullable()();

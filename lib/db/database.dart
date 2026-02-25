@@ -8,7 +8,17 @@ import 'package:stockanize/db/parts.dart';
 
 part 'database.g.dart';
 
-@DriftDatabase(tables: [Accounts, UserGroups, AppContexts, Parts, PartsImages])
+@DriftDatabase(tables: [
+  Users,
+  Accounts,
+  AccountMembers,
+  UserGroups,
+  GroupMembers,
+  GroupInvites,
+  AppContexts,
+  Parts,
+  PartsImages,
+])
 class AppDatabase extends _$AppDatabase {
   AppDatabase._internal() : super(_openConnection());
   static final AppDatabase instance = AppDatabase._internal();
@@ -19,12 +29,14 @@ class AppDatabase extends _$AppDatabase {
 
   String _activeAccountId = defaultAccountId;
   int? _activeGroupId;
+  int? _activeUserId;
 
   String get currentAccountId => _activeAccountId;
   int? get currentGroupId => _activeGroupId;
+  int? get currentUserId => _activeUserId;
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -42,6 +54,17 @@ class AppDatabase extends _$AppDatabase {
             await m.createTable(appContexts);
             await m.addColumn(parts, parts.accountId);
             await m.addColumn(parts, parts.groupId);
+          }
+
+          if (from < 4) {
+            await m.createTable(users);
+            await m.createTable(accountMembers);
+            await m.createTable(groupMembers);
+            await m.createTable(groupInvites);
+
+            if (from >= 3) {
+              await m.addColumn(appContexts, appContexts.activeUserId);
+            }
           }
         },
         beforeOpen: (details) async {
@@ -66,14 +89,18 @@ class AppDatabase extends _$AppDatabase {
         AppContextsCompanion(
           id: const Value(contextRowId),
           activeAccountId: const Value(defaultAccountId),
+          activeGroupId: const Value(null),
+          activeUserId: const Value(null),
         ),
         mode: InsertMode.insertOrReplace,
       );
       _activeAccountId = defaultAccountId;
       _activeGroupId = null;
+      _activeUserId = null;
     } else {
       _activeAccountId = appContext.activeAccountId;
       _activeGroupId = appContext.activeGroupId;
+      _activeUserId = appContext.activeUserId;
     }
 
     await customStatement(
@@ -86,23 +113,83 @@ class AppDatabase extends _$AppDatabase {
     await _bootstrapTenantContext();
   }
 
-  Future<void> setActiveScope({required String accountId, int? groupId}) async {
+  Future<void> setActiveScope({
+    required String accountId,
+    int? groupId,
+    int? userId,
+  }) async {
     await (update(appContexts)..where((t) => t.id.equals(contextRowId))).write(
       AppContextsCompanion(
         activeAccountId: Value(accountId),
         activeGroupId: Value(groupId),
+        activeUserId: Value(userId),
       ),
     );
     _activeAccountId = accountId;
     _activeGroupId = groupId;
+    _activeUserId = userId;
   }
 
   Future<void> setActiveAccount(String accountId) async {
-    await setActiveScope(accountId: accountId, groupId: null);
+    final userId = _activeUserId;
+    if (userId == null) {
+      throw StateError('アカウントを切り替えるにはログインが必要です');
+    }
+
+    final membership = await (select(accountMembers)
+          ..where((m) => m.accountId.equals(accountId))
+          ..where((m) => m.userId.equals(userId)))
+        .getSingleOrNull();
+    if (membership == null) {
+      throw StateError('このユーザは対象アカウントに所属していません');
+    }
+
+    await setActiveScope(accountId: accountId, groupId: null, userId: userId);
+  }
+
+  Future<void> setActiveUser(int? userId) async {
+    String nextAccountId = _activeAccountId;
+
+    if (userId != null) {
+      final memberships = await (select(accountMembers)
+            ..where((m) => m.userId.equals(userId))
+            ..orderBy([(m) => OrderingTerm.asc(m.createdAt)]))
+          .get();
+
+      if (memberships.isNotEmpty) {
+        final hasCurrent =
+            memberships.any((m) => m.accountId == _activeAccountId);
+        if (!hasCurrent) {
+          nextAccountId = memberships.first.accountId;
+        }
+      }
+    }
+
+    await setActiveScope(
+        accountId: nextAccountId, groupId: null, userId: userId);
   }
 
   Future<void> setActiveGroup(int? groupId) async {
-    await setActiveScope(accountId: currentAccountId, groupId: groupId);
+    if (groupId != null) {
+      final userId = _activeUserId;
+      if (userId == null) {
+        throw StateError('グループを選択するにはログインが必要です');
+      }
+
+      final member = await (select(groupMembers)
+            ..where((m) => m.groupId.equals(groupId))
+            ..where((m) => m.userId.equals(userId)))
+          .getSingleOrNull();
+      if (member == null) {
+        throw StateError('このユーザは対象グループに参加していません');
+      }
+    }
+
+    await setActiveScope(
+      accountId: currentAccountId,
+      groupId: groupId,
+      userId: _activeUserId,
+    );
   }
 
   Stream<AppContext?> watchAppContext() {

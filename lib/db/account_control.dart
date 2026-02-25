@@ -1,22 +1,204 @@
+import 'dart:math';
+
 import 'package:drift/drift.dart';
 import 'package:stockanize/db/database.dart';
+import 'package:stockanize/security/password_hasher.dart';
+
+class GroupMemberView {
+  const GroupMemberView({
+    required this.membershipId,
+    required this.groupId,
+    required this.userId,
+    required this.username,
+    required this.role,
+  });
+
+  final int membershipId;
+  final int groupId;
+  final int userId;
+  final String username;
+  final String role;
+}
+
+class GroupInviteView {
+  const GroupInviteView({
+    required this.id,
+    required this.groupId,
+    required this.groupName,
+    required this.inviteeUsername,
+    required this.token,
+    required this.status,
+    required this.expiresAt,
+  });
+
+  final int id;
+  final int groupId;
+  final String groupName;
+  final String inviteeUsername;
+  final String token;
+  final String status;
+  final DateTime expiresAt;
+}
 
 extension AccountControlDao on AppDatabase {
-  Stream<List<Account>> watchAccounts() {
-    return (select(accounts)..orderBy([(a) => OrderingTerm.asc(a.createdAt)]))
+  Stream<List<User>> watchUsers() {
+    return (select(users)..orderBy([(u) => OrderingTerm.asc(u.username)]))
         .watch();
   }
 
-  Future<List<Account>> getAccounts() {
-    return (select(accounts)..orderBy([(a) => OrderingTerm.asc(a.createdAt)]))
-        .get();
+  Future<int> registerUser({
+    required String username,
+    required String password,
+  }) async {
+    final normalized = username.trim().toLowerCase();
+    _validateUsername(normalized);
+    _validatePassword(password);
+
+    final salt = PasswordHasher.createSalt();
+    final passwordHash = PasswordHasher.hash(password, salt);
+
+    final userId = await into(users).insert(
+      UsersCompanion.insert(
+        username: normalized,
+        passwordHash: passwordHash,
+        passwordSalt: salt,
+      ),
+    );
+
+    final defaultMemberCount = await (select(accountMembers)
+          ..where((m) => m.accountId.equals(AppDatabase.defaultAccountId)))
+        .get()
+        .then((rows) => rows.length);
+
+    if (defaultMemberCount == 0) {
+      await into(accountMembers).insert(
+        AccountMembersCompanion.insert(
+          accountId: AppDatabase.defaultAccountId,
+          userId: userId,
+          role: const Value('owner'),
+        ),
+      );
+    }
+
+    await setActiveUser(userId);
+    return userId;
   }
 
-  Future<String> createAccount(String name) async {
+  Future<void> login({
+    required String username,
+    required String password,
+  }) async {
+    final normalized = username.trim().toLowerCase();
+    final user = await (select(users)
+          ..where((u) => u.username.equals(normalized)))
+        .getSingleOrNull();
+
+    if (user == null) {
+      throw StateError('ユーザが見つかりません');
+    }
+
+    final isValid = PasswordHasher.verify(
+      password: password,
+      salt: user.passwordSalt,
+      expectedHash: user.passwordHash,
+    );
+
+    if (!isValid) {
+      throw StateError('パスワードが正しくありません');
+    }
+
+    await setActiveUser(user.id);
+  }
+
+  Future<void> logout() async {
+    await setActiveUser(null);
+  }
+
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final userId = currentUserId;
+    if (userId == null) {
+      throw StateError('ログインが必要です');
+    }
+
+    final currentUser =
+        await (select(users)..where((u) => u.id.equals(userId))).getSingle();
+
+    final currentValid = PasswordHasher.verify(
+      password: currentPassword,
+      salt: currentUser.passwordSalt,
+      expectedHash: currentUser.passwordHash,
+    );
+    if (!currentValid) {
+      throw StateError('現在のパスワードが正しくありません');
+    }
+
+    _validatePassword(newPassword);
+
+    final salt = PasswordHasher.createSalt();
+    final passwordHash = PasswordHasher.hash(newPassword, salt);
+
+    await (update(users)..where((u) => u.id.equals(userId))).write(
+      UsersCompanion(
+        passwordSalt: Value(salt),
+        passwordHash: Value(passwordHash),
+      ),
+    );
+  }
+
+  Future<User?> getCurrentUser() async {
+    final userId = currentUserId;
+    if (userId == null) return null;
+    return (select(users)..where((u) => u.id.equals(userId))).getSingleOrNull();
+  }
+
+  Stream<List<Account>> watchAccounts() {
+    final userId = currentUserId;
+    if (userId == null) {
+      return Stream.value(const <Account>[]);
+    }
+
+    final query = select(accounts).join([
+      innerJoin(
+          accountMembers, accountMembers.accountId.equalsExp(accounts.id)),
+    ])
+      ..where(accountMembers.userId.equals(userId))
+      ..orderBy([OrderingTerm.asc(accounts.createdAt)]);
+
+    return query.watch().map((rows) {
+      return rows.map((row) => row.readTable(accounts)).toList();
+    });
+  }
+
+  Future<List<Account>> getAccounts() async {
+    final userId = currentUserId;
+    if (userId == null) {
+      return const <Account>[];
+    }
+
+    final query = select(accounts).join([
+      innerJoin(
+          accountMembers, accountMembers.accountId.equalsExp(accounts.id)),
+    ])
+      ..where(accountMembers.userId.equals(userId))
+      ..orderBy([OrderingTerm.asc(accounts.createdAt)]);
+
+    final rows = await query.get();
+    return rows.map((row) => row.readTable(accounts)).toList();
+  }
+
+  Future<String> createAccount(
+    String name, {
+    required String currentPassword,
+  }) async {
     final normalized = name.trim();
     if (normalized.isEmpty) {
       throw ArgumentError('アカウント名は必須です');
     }
+
+    final user = await _requireCurrentUserAndVerifyPassword(currentPassword);
 
     final id = 'acc-${DateTime.now().millisecondsSinceEpoch}';
     await into(accounts).insert(
@@ -25,6 +207,16 @@ extension AccountControlDao on AppDatabase {
         name: normalized,
       ),
     );
+
+    await into(accountMembers).insert(
+      AccountMembersCompanion.insert(
+        accountId: id,
+        userId: user.id,
+        role: const Value('owner'),
+      ),
+    );
+
+    await setActiveScope(accountId: id, groupId: null, userId: user.id);
     return id;
   }
 
@@ -34,6 +226,8 @@ extension AccountControlDao on AppDatabase {
       throw ArgumentError('アカウント名は必須です');
     }
 
+    await _ensureAccountMember(accountId);
+
     await (update(accounts)..where((a) => a.id.equals(accountId))).write(
       AccountsCompanion(
         name: Value(normalized),
@@ -42,43 +236,100 @@ extension AccountControlDao on AppDatabase {
   }
 
   Future<void> deleteAccount(String accountId) async {
-    final totalAccounts = await getAccounts();
-    if (totalAccounts.length <= 1) {
+    await _ensureAccountMember(accountId);
+
+    final accountList = await getAccounts();
+    if (accountList.length <= 1) {
       throw StateError('最後の1アカウントは削除できません');
     }
 
     if (accountId == currentAccountId) {
-      final fallback = totalAccounts.firstWhere((a) => a.id != accountId);
-      await setActiveScope(accountId: fallback.id, groupId: null);
+      final fallback = accountList.firstWhere((a) => a.id != accountId);
+      await setActiveScope(
+        accountId: fallback.id,
+        groupId: null,
+        userId: currentUserId,
+      );
     }
 
     await (delete(accounts)..where((a) => a.id.equals(accountId))).go();
   }
 
-  Stream<List<UserGroup>> watchGroupsForCurrentAccount() {
-    return (select(userGroups)
-          ..where((g) => g.accountId.equals(currentAccountId))
-          ..orderBy([(g) => OrderingTerm.asc(g.createdAt)]))
-        .watch();
+  Future<void> addUserToAccount({
+    required String accountId,
+    required String username,
+    String role = 'member',
+  }) async {
+    await _ensureAccountMember(accountId);
+    final normalized = username.trim().toLowerCase();
+
+    final user = await (select(users)
+          ..where((u) => u.username.equals(normalized)))
+        .getSingleOrNull();
+    if (user == null) {
+      throw StateError('招待対象ユーザが存在しません');
+    }
+
+    await into(accountMembers).insertOnConflictUpdate(
+      AccountMembersCompanion.insert(
+        accountId: accountId,
+        userId: user.id,
+        role: Value(role),
+      ),
+    );
   }
 
-  Future<int> createGroup(String name, {String? description}) {
+  Stream<List<UserGroup>> watchGroupsForCurrentAccount() {
+    final userId = currentUserId;
+    if (userId == null) {
+      return Stream.value(const <UserGroup>[]);
+    }
+
+    final query = select(userGroups).join([
+      innerJoin(groupMembers, groupMembers.groupId.equalsExp(userGroups.id)),
+    ])
+      ..where(userGroups.accountId.equals(currentAccountId))
+      ..where(groupMembers.userId.equals(userId))
+      ..orderBy([OrderingTerm.asc(userGroups.createdAt)]);
+
+    return query.watch().map((rows) {
+      return rows.map((row) => row.readTable(userGroups)).toList();
+    });
+  }
+
+  Future<int> createGroup(String name, {String? description}) async {
+    final user = await _requireCurrentUser();
+    await _ensureAccountMember(currentAccountId);
+
     final normalized = name.trim();
     if (normalized.isEmpty) {
       throw ArgumentError('グループ名は必須です');
     }
 
-    return into(userGroups).insert(
+    final groupId = await into(userGroups).insert(
       UserGroupsCompanion.insert(
         accountId: currentAccountId,
         name: normalized,
         description: Value(
-            description?.trim().isEmpty ?? true ? null : description!.trim()),
+          description?.trim().isEmpty ?? true ? null : description!.trim(),
+        ),
       ),
     );
+
+    await into(groupMembers).insert(
+      GroupMembersCompanion.insert(
+        groupId: groupId,
+        userId: user.id,
+        role: const Value('admin'),
+      ),
+    );
+
+    return groupId;
   }
 
   Future<void> renameGroup(int groupId, String name) async {
+    await _ensureGroupMember(groupId);
+
     final normalized = name.trim();
     if (normalized.isEmpty) {
       throw ArgumentError('グループ名は必須です');
@@ -92,10 +343,238 @@ extension AccountControlDao on AppDatabase {
   }
 
   Future<void> deleteGroup(int groupId) async {
+    await _ensureGroupMember(groupId);
+
     if (currentGroupId == groupId) {
       await setActiveGroup(null);
     }
 
     await (delete(userGroups)..where((g) => g.id.equals(groupId))).go();
+  }
+
+  Stream<List<GroupMemberView>> watchGroupMembers(int groupId) {
+    final query = select(groupMembers).join([
+      innerJoin(users, users.id.equalsExp(groupMembers.userId)),
+    ])
+      ..where(groupMembers.groupId.equals(groupId));
+
+    return query.watch().map((rows) {
+      return rows.map((row) {
+        final membership = row.readTable(groupMembers);
+        final user = row.readTable(users);
+        return GroupMemberView(
+          membershipId: membership.id,
+          groupId: membership.groupId,
+          userId: user.id,
+          username: user.username,
+          role: membership.role,
+        );
+      }).toList()
+        ..sort((a, b) => a.username.compareTo(b.username));
+    });
+  }
+
+  Future<int> inviteUserToGroup({
+    required int groupId,
+    required String inviteeUsername,
+  }) async {
+    final inviter = await _requireCurrentUser();
+    await _ensureGroupMember(groupId);
+
+    final normalized = inviteeUsername.trim().toLowerCase();
+    _validateUsername(normalized);
+
+    final token = _generateInviteToken();
+    final expiresAt = DateTime.now().add(const Duration(days: 7));
+
+    return into(groupInvites).insert(
+      GroupInvitesCompanion.insert(
+        groupId: groupId,
+        invitedByUserId: Value(inviter.id),
+        inviteeUsername: normalized,
+        token: token,
+        expiresAt: expiresAt,
+      ),
+    );
+  }
+
+  Stream<List<GroupInviteView>> watchPendingInvitesForCurrentUser() async* {
+    final user = await getCurrentUser();
+    if (user == null) {
+      yield const <GroupInviteView>[];
+      return;
+    }
+
+    final username = user.username;
+    final query = select(groupInvites).join([
+      innerJoin(userGroups, userGroups.id.equalsExp(groupInvites.groupId)),
+    ])
+      ..where(groupInvites.inviteeUsername.equals(username))
+      ..where(groupInvites.status.equals('pending'));
+
+    yield* query.watch().map((rows) {
+      return rows.map((row) {
+        final invite = row.readTable(groupInvites);
+        final group = row.readTable(userGroups);
+        return GroupInviteView(
+          id: invite.id,
+          groupId: invite.groupId,
+          groupName: group.name,
+          inviteeUsername: invite.inviteeUsername,
+          token: invite.token,
+          status: invite.status,
+          expiresAt: invite.expiresAt,
+        );
+      }).toList()
+        ..sort((a, b) => b.id.compareTo(a.id));
+    });
+  }
+
+  Future<void> acceptInvite(int inviteId) async {
+    final user = await _requireCurrentUser();
+
+    final invite = await (select(groupInvites)
+          ..where((i) => i.id.equals(inviteId)))
+        .getSingleOrNull();
+    if (invite == null) {
+      throw StateError('招待が存在しません');
+    }
+
+    if (invite.status != 'pending') {
+      throw StateError('この招待は既に処理済みです');
+    }
+
+    if (invite.inviteeUsername != user.username) {
+      throw StateError('この招待は現在のユーザ向けではありません');
+    }
+
+    if (invite.expiresAt.isBefore(DateTime.now())) {
+      throw StateError('招待の有効期限が切れています');
+    }
+
+    await transaction(() async {
+      await into(accountMembers).insertOnConflictUpdate(
+        AccountMembersCompanion.insert(
+          accountId: currentAccountId,
+          userId: user.id,
+          role: const Value('member'),
+        ),
+      );
+
+      await into(groupMembers).insertOnConflictUpdate(
+        GroupMembersCompanion.insert(
+          groupId: invite.groupId,
+          userId: user.id,
+          role: const Value('member'),
+        ),
+      );
+
+      await (update(groupInvites)..where((i) => i.id.equals(inviteId))).write(
+        const GroupInvitesCompanion(
+          status: Value('accepted'),
+        ),
+      );
+    });
+  }
+
+  Future<void> declineInvite(int inviteId) async {
+    final user = await _requireCurrentUser();
+
+    final invite = await (select(groupInvites)
+          ..where((i) => i.id.equals(inviteId)))
+        .getSingleOrNull();
+    if (invite == null) {
+      throw StateError('招待が存在しません');
+    }
+
+    if (invite.inviteeUsername != user.username) {
+      throw StateError('この招待は現在のユーザ向けではありません');
+    }
+
+    await (update(groupInvites)..where((i) => i.id.equals(inviteId))).write(
+      const GroupInvitesCompanion(
+        status: Value('declined'),
+      ),
+    );
+  }
+
+  Future<User> _requireCurrentUser() async {
+    final user = await getCurrentUser();
+    if (user == null) {
+      throw StateError('ログインが必要です');
+    }
+    return user;
+  }
+
+  Future<User> _requireCurrentUserAndVerifyPassword(String password) async {
+    final user = await _requireCurrentUser();
+    final verified = PasswordHasher.verify(
+      password: password,
+      salt: user.passwordSalt,
+      expectedHash: user.passwordHash,
+    );
+    if (!verified) {
+      throw StateError('パスワードが正しくありません');
+    }
+    return user;
+  }
+
+  Future<void> _ensureAccountMember(String accountId) async {
+    final userId = currentUserId;
+    if (userId == null) {
+      throw StateError('ログインが必要です');
+    }
+
+    final membership = await (select(accountMembers)
+          ..where((m) => m.accountId.equals(accountId))
+          ..where((m) => m.userId.equals(userId)))
+        .getSingleOrNull();
+    if (membership == null) {
+      throw StateError('対象アカウントに所属していません');
+    }
+  }
+
+  Future<void> _ensureGroupMember(int groupId) async {
+    final userId = currentUserId;
+    if (userId == null) {
+      throw StateError('ログインが必要です');
+    }
+
+    final membership = await (select(groupMembers)
+          ..where((m) => m.groupId.equals(groupId))
+          ..where((m) => m.userId.equals(userId)))
+        .getSingleOrNull();
+
+    if (membership == null) {
+      throw StateError('対象グループに参加していません');
+    }
+  }
+
+  void _validateUsername(String username) {
+    final rule = RegExp(r'^[a-z0-9._-]{3,32}$');
+    if (!rule.hasMatch(username)) {
+      throw ArgumentError('ユーザ名は3〜32文字の英小文字/数字/._-のみ使用可能です');
+    }
+  }
+
+  void _validatePassword(String password) {
+    final hasUpper = RegExp(r'[A-Z]').hasMatch(password);
+    final hasLower = RegExp(r'[a-z]').hasMatch(password);
+    final hasDigit = RegExp(r'[0-9]').hasMatch(password);
+    final hasSymbol = RegExp(r'[^A-Za-z0-9]').hasMatch(password);
+
+    if (password.length < 12 ||
+        !hasUpper ||
+        !hasLower ||
+        !hasDigit ||
+        !hasSymbol) {
+      throw ArgumentError('パスワードは12文字以上かつ大小英字/数字/記号を含めてください');
+    }
+  }
+
+  String _generateInviteToken() {
+    final random = Random.secure();
+    final value = List<int>.generate(16, (_) => random.nextInt(256));
+    return value.map((e) => e.toRadixString(16).padLeft(2, '0')).join();
   }
 }
