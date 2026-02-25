@@ -67,7 +67,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     final passwordController = TextEditingController();
     final confirmController = TextEditingController();
 
-    await showDialog<void>(
+    final payload = await showDialog<_RegisterPayload>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('新規登録'),
@@ -110,18 +110,17 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
             child: const Text('キャンセル'),
           ),
           FilledButton(
-            onPressed: () async {
+            onPressed: () {
               if (passwordController.text != confirmController.text) {
                 _snack('確認用パスワードが一致しません');
                 return;
               }
-              await _run(() async {
-                await widget.repository.registerUser(
+              Navigator.of(dialogContext).pop(
+                _RegisterPayload(
                   username: usernameController.text,
                   password: passwordController.text,
-                );
-              });
-              if (mounted) Navigator.of(dialogContext).pop();
+                ),
+              );
             },
             child: const Text('登録'),
           ),
@@ -132,6 +131,14 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     usernameController.dispose();
     passwordController.dispose();
     confirmController.dispose();
+
+    if (payload == null) return;
+    await _run(() async {
+      await widget.repository.registerUser(
+        username: payload.username,
+        password: payload.password,
+      );
+    });
   }
 
   Future<void> _showChangePasswordDialog() async {
@@ -139,7 +146,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     final nextController = TextEditingController();
     final confirmController = TextEditingController();
 
-    await showDialog<void>(
+    final payload = await showDialog<_ChangePasswordPayload>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('パスワード変更'),
@@ -174,19 +181,17 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
             child: const Text('キャンセル'),
           ),
           FilledButton(
-            onPressed: () async {
+            onPressed: () {
               if (nextController.text != confirmController.text) {
                 _snack('確認用パスワードが一致しません');
                 return;
               }
-              await _run(
-                () => widget.repository.changePassword(
+              Navigator.of(dialogContext).pop(
+                _ChangePasswordPayload(
                   currentPassword: currentController.text,
                   newPassword: nextController.text,
                 ),
-                okMessage: 'パスワードを更新しました',
               );
-              if (mounted) Navigator.of(dialogContext).pop();
             },
             child: const Text('更新'),
           ),
@@ -197,13 +202,22 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     currentController.dispose();
     nextController.dispose();
     confirmController.dispose();
+
+    if (payload == null) return;
+    await _run(
+      () => widget.repository.changePassword(
+        currentPassword: payload.currentPassword,
+        newPassword: payload.newPassword,
+      ),
+      okMessage: 'パスワードを更新しました',
+    );
   }
 
   Future<void> _showCreateAccountDialog() async {
     final nameController = TextEditingController();
     final passwordController = TextEditingController();
 
-    await showDialog<void>(
+    final payload = await showDialog<_CreateAccountPayload>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('アカウント作成'),
@@ -231,15 +245,13 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
             child: const Text('キャンセル'),
           ),
           FilledButton(
-            onPressed: () async {
-              await _run(() async {
-                final id = await widget.repository.createAccount(
-                  nameController.text,
-                  currentPassword: passwordController.text,
-                );
-                await widget.repository.setActiveAccount(id);
-              });
-              if (mounted) Navigator.of(dialogContext).pop();
+            onPressed: () {
+              Navigator.of(dialogContext).pop(
+                _CreateAccountPayload(
+                  name: nameController.text,
+                  password: passwordController.text,
+                ),
+              );
             },
             child: const Text('作成'),
           ),
@@ -249,21 +261,26 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
 
     nameController.dispose();
     passwordController.dispose();
+
+    if (payload == null) return;
+    await _run(() async {
+      final id = await widget.repository.createAccount(
+        payload.name,
+        currentPassword: payload.password,
+      );
+      await widget.repository.setActiveAccount(id);
+    });
   }
 
   Future<void> _showAccountSwitchDialog(List<Account> accounts) async {
-    await showDialog<void>(
+    final accountId = await showDialog<String>(
       context: context,
       builder: (dialogContext) => SimpleDialog(
         title: const Text('アカウント切り替え'),
         children: accounts
             .map(
               (account) => SimpleDialogOption(
-                onPressed: () async {
-                  await _run(
-                      () => widget.repository.setActiveAccount(account.id));
-                  if (mounted) Navigator.of(dialogContext).pop();
-                },
+                onPressed: () => Navigator.of(dialogContext).pop(account.id),
                 child: Text(
                   account.name,
                   style: TextStyle(
@@ -277,13 +294,16 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
             .toList(),
       ),
     );
+
+    if (accountId == null) return;
+    await _run(() => widget.repository.setActiveAccount(accountId));
   }
 
   Future<void> _showCreateGroupDialog() async {
     final nameController = TextEditingController();
     final descController = TextEditingController();
 
-    await showDialog<void>(
+    final payload = await showDialog<_CreateGroupPayload>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('グループ作成'),
@@ -310,15 +330,13 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
             child: const Text('キャンセル'),
           ),
           FilledButton(
-            onPressed: () async {
-              await _run(() async {
-                final groupId = await widget.repository.createGroup(
-                  nameController.text,
+            onPressed: () {
+              Navigator.of(dialogContext).pop(
+                _CreateGroupPayload(
+                  name: nameController.text,
                   description: descController.text,
-                );
-                await widget.repository.setActiveGroup(groupId);
-              });
-              if (mounted) Navigator.of(dialogContext).pop();
+                ),
+              );
             },
             child: const Text('作成'),
           ),
@@ -328,12 +346,21 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
 
     nameController.dispose();
     descController.dispose();
+
+    if (payload == null) return;
+    await _run(() async {
+      final groupId = await widget.repository.createGroup(
+        payload.name,
+        description: payload.description,
+      );
+      await widget.repository.setActiveGroup(groupId);
+    });
   }
 
   Future<void> _showInviteDialog(int groupId) async {
     final inviteController = TextEditingController();
 
-    await showDialog<void>(
+    final invitee = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('メンバー招待'),
@@ -347,15 +374,8 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
             child: const Text('キャンセル'),
           ),
           FilledButton(
-            onPressed: () async {
-              await _run(() async {
-                await widget.repository.inviteUserToGroup(
-                  groupId: groupId,
-                  inviteeUsername: inviteController.text,
-                );
-              });
-              if (mounted) Navigator.of(dialogContext).pop();
-            },
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(inviteController.text),
             child: const Text('招待送信'),
           ),
         ],
@@ -363,6 +383,14 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     );
 
     inviteController.dispose();
+
+    if (invitee == null) return;
+    await _run(() async {
+      await widget.repository.inviteUserToGroup(
+        groupId: groupId,
+        inviteeUsername: invitee,
+      );
+    });
   }
 
   @override
@@ -379,12 +407,12 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
 
           return StreamBuilder<List<Account>>(
             stream: widget.repository.watchAccounts(),
-            builder: (context, accountsSnapshot) {
-              final accounts = accountsSnapshot.data ?? const <Account>[];
+            builder: (context, accountSnapshot) {
+              final accounts = accountSnapshot.data ?? const <Account>[];
               return StreamBuilder<List<UserGroup>>(
                 stream: widget.repository.watchGroupsForCurrentAccount(),
-                builder: (context, groupsSnapshot) {
-                  final groups = groupsSnapshot.data ?? const <UserGroup>[];
+                builder: (context, groupSnapshot) {
+                  final groups = groupSnapshot.data ?? const <UserGroup>[];
                   return _buildLoggedIn(user, accounts, groups);
                 },
               );
@@ -651,4 +679,31 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
       ],
     );
   }
+}
+
+class _RegisterPayload {
+  const _RegisterPayload({required this.username, required this.password});
+  final String username;
+  final String password;
+}
+
+class _ChangePasswordPayload {
+  const _ChangePasswordPayload({
+    required this.currentPassword,
+    required this.newPassword,
+  });
+  final String currentPassword;
+  final String newPassword;
+}
+
+class _CreateAccountPayload {
+  const _CreateAccountPayload({required this.name, required this.password});
+  final String name;
+  final String password;
+}
+
+class _CreateGroupPayload {
+  const _CreateGroupPayload({required this.name, required this.description});
+  final String name;
+  final String description;
 }
