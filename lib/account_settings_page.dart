@@ -128,10 +128,6 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
       ),
     );
 
-    usernameController.dispose();
-    passwordController.dispose();
-    confirmController.dispose();
-
     if (payload == null) return;
     await _run(() async {
       await widget.repository.registerUser(
@@ -199,10 +195,6 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
       ),
     );
 
-    currentController.dispose();
-    nextController.dispose();
-    confirmController.dispose();
-
     if (payload == null) return;
     await _run(
       () => widget.repository.changePassword(
@@ -258,9 +250,6 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
         ],
       ),
     );
-
-    nameController.dispose();
-    passwordController.dispose();
 
     if (payload == null) return;
     await _run(() async {
@@ -344,9 +333,6 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
       ),
     );
 
-    nameController.dispose();
-    descController.dispose();
-
     if (payload == null) return;
     await _run(() async {
       final groupId = await widget.repository.createGroup(
@@ -381,8 +367,6 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
         ],
       ),
     );
-
-    inviteController.dispose();
 
     if (invitee == null) return;
     await _run(() async {
