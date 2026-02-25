@@ -14,13 +14,13 @@ Future<void> insertSampleData(AppDatabase db) async {
       location: const Value("Box A1"),
       datasheetUrl: Value("https://example.com/datasheet.pdf"),
       buyUrl: Value("https://shop.example.com/resister1/"),
-      metadata: Value({
+      metadata: {
         "resistance": "1kΩ",
         "tolerance": "±5%",
         "power": "1/4W",
         "package": "THD",
         "size": {"depth": "2.7mm", "length": "9mm"}
-      }));
+      });
 
   await db.insertPart(samplePart);
 }

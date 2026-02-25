@@ -669,6 +669,35 @@ class _EditPartPageState extends State<EditPartPage>
       metadata: metadata.isNotEmpty ? Value(metadata) : const Value.absent(),
     );
 
+    final result = (widget.part ??
+            Part(
+              id: 0,
+              accountId: widget.db.currentAccountId,
+              groupId: widget.db.currentGroupId,
+              category: null,
+              subcategory: null,
+              name: '',
+              code: null,
+              stock: 0,
+              location: null,
+              datasheetUrl: null,
+              buyUrl: null,
+              metadata: const {},
+            ))
+        .copyWith(
+      accountId: Value(widget.db.currentAccountId),
+      groupId: Value(widget.db.currentGroupId),
+      category: Value(_selectedCategory),
+      subcategory: Value(_selectedSubcategory),
+      name: _nameController.text,
+      code: Value(_codeController.text),
+      stock: int.tryParse(_stockController.text) ?? 0,
+      location: Value(_locationController.text),
+      datasheetUrl: Value(_datasheetUrlController.text),
+      buyUrl: Value(_buyUrlController.text),
+      metadata: metadata,
+    );
+
     try {
       if (widget.part == null) {
         // --- 新規追加 ---
@@ -682,23 +711,13 @@ class _EditPartPageState extends State<EditPartPage>
         /* await (widget.db.update(widget.db.parts)
               ..where((tbl) => tbl.id.equals(widget.part!.id)))
             .write(companion);*/
-        await widget.db.updatePartWithImages(widget.part!, _images);
+        await widget.db.updatePartWithImages(result, _images);
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("部品を更新しました")),
         );
       }
-      final result = widget.part!.copyWith(
-        category: Value(_selectedCategory),
-        subcategory: Value(_selectedSubcategory),
-        name: _nameController.text,
-        code: Value(_codeController.text),
-        stock: int.tryParse(_stockController.text) ?? 0,
-        location: Value(_locationController.text),
-        datasheetUrl: Value(_datasheetUrlController.text),
-        buyUrl: Value(_buyUrlController.text),
-        metadata: Value(metadata),
-      );
+
       //Navigator.push(context, MaterialPageRoute(builder: (context) => HeroListItemPage(part: widget.part, index: index, heroTag: heroTag, db: db)))
       debugPrint(
           'PartEdit: pop returning -> id:${result.id} name:${result.name} code:${result.code} location:${result.location} stock:${result.stock}\nmetadata:${result.metadata}');

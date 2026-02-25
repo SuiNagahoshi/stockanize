@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:drift/drift.dart' as drift;
 import 'db/database.dart';
+import 'db/parts.dart';
 
 class QrResultPage extends StatefulWidget {
   final String partId;
@@ -28,9 +28,7 @@ class _QrResultPageState extends State<QrResultPage> {
       return;
     }
 
-    final result = await (db.select(db.parts)
-          ..where((tbl) => tbl.id.equals(id)))
-        .getSingleOrNull();
+    final result = await db.getPartById(id);
 
     setState(() {
       part = result;
@@ -78,9 +76,8 @@ class _QrResultPageState extends State<QrResultPage> {
             ElevatedButton(
               onPressed: () async {
                 final db = AppDatabase();
-                await (db.update(db.parts)
-                      ..where((tbl) => tbl.id.equals(part!.id)))
-                    .write(PartsCompanion(stock: drift.Value(part!.stock + 1)));
+                final updated = part!.copyWith(stock: part!.stock + 1);
+                await db.updatePart(updated);
                 _loadPart();
               },
               child: const Text('在庫を +1'),

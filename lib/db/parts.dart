@@ -8,8 +8,46 @@ import 'package:stockanize/db/database.dart';
 
 import '../add_page.dart';
 
+class Accounts extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text().unique()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column<Object>>? get primaryKey => {id};
+}
+
+class UserGroups extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get accountId =>
+      text().references(Accounts, #id, onDelete: KeyAction.cascade)();
+  TextColumn get name => text()();
+  TextColumn get description => text().nullable()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  List<String> get customConstraints => ['UNIQUE(account_id, name)'];
+}
+
+class AppContexts extends Table {
+  IntColumn get id => integer()();
+  TextColumn get activeAccountId => text().references(Accounts, #id)();
+  IntColumn get activeGroupId => integer()
+      .nullable()
+      .references(UserGroups, #id, onDelete: KeyAction.setNull)();
+
+  @override
+  Set<Column<Object>>? get primaryKey => {id};
+}
+
 class Parts extends Table {
   IntColumn get id => integer().autoIncrement()();
+  TextColumn get accountId => text()
+      .references(Accounts, #id, onDelete: KeyAction.cascade)
+      .nullable()();
+  IntColumn get groupId => integer()
+      .nullable()
+      .references(UserGroups, #id, onDelete: KeyAction.setNull)();
   TextColumn get subcategory => text().nullable()();
   TextColumn get category => text().nullable()();
   TextColumn get name => text()();
@@ -42,11 +80,31 @@ class MetadataConverter extends TypeConverter<Map<String, dynamic>, String> {
 }
 
 extension PartDao on AppDatabase {
-  Future<int> insertPart(PartsCompanion entry) => into(parts).insert(entry);
+  Future<int> insertPart(PartsCompanion entry) {
+    final scoped = entry.copyWith(
+      accountId: Value(currentAccountId),
+      groupId: entry.groupId.present ? entry.groupId : Value(currentGroupId),
+    );
+    return into(parts).insert(scoped);
+  }
 
-  Future<List<Part>> getAllParts() => select(parts).get();
+  Future<List<Part>> getAllParts() {
+    final query = select(parts)
+      ..where((t) => t.accountId.equals(currentAccountId));
+    if (currentGroupId != null) {
+      query.where((t) => t.groupId.equals(currentGroupId!));
+    }
+    return query.get();
+  }
 
-  Stream<List<Part>> watchParts() => select(parts).watch();
+  Stream<List<Part>> watchParts() {
+    final query = select(parts)
+      ..where((t) => t.accountId.equals(currentAccountId));
+    if (currentGroupId != null) {
+      query.where((t) => t.groupId.equals(currentGroupId!));
+    }
+    return query.watch();
+  }
 
   Stream<List<PartsImage>> watchImages(int partId) {
     return (select(partsImages)
@@ -55,79 +113,87 @@ extension PartDao on AppDatabase {
         .watch();
   }
 
-  Future<Part?> getPartById(int id) =>
-      (select(parts)..where((tbl) => tbl.id.equals(id))).getSingleOrNull();
+  Future<Part?> getPartById(int id) {
+    final query = select(parts)
+      ..where((tbl) => tbl.id.equals(id))
+      ..where((tbl) => tbl.accountId.equals(currentAccountId));
+    if (currentGroupId != null) {
+      query.where((tbl) => tbl.groupId.equals(currentGroupId!));
+    }
+    return query.getSingleOrNull();
+  }
 
   Future<void> updatePart(Part part) {
-    print('watchAllParts fired');
-
+    if (part.accountId != currentAccountId) {
+      throw StateError('アクティブなアカウント外のデータは更新できません');
+    }
     return update(parts).replace(part);
   }
 
-  //Future<int> deletePart(int id) =>
-  //    (delete(parts)..where((tbl) => tbl.id.equals(id))).go();
+  Future deleteAllParts() {
+    final query = delete(parts)
+      ..where((tbl) => tbl.accountId.equals(currentAccountId));
+    return query.go();
+  }
 
-  Future deleteAllParts() => delete(parts).go();
-
-  /// Part + 参考画像をまとめて登録
   Future<int> insertPartWithImages(
     PartsCompanion entry,
     List<ImageItem> imageItem,
   ) async {
     final images = imageItem.map((item) => File(item.file.path)).toList();
     return transaction(() async {
-      final partId = await into(parts).insert(entry);
+      final partId = await insertPart(entry);
       await _insertImages(partId, images);
       return partId;
     });
   }
 
-  /// Part + 参考画像をまとめて更新
   Future<void> updatePartWithImages(
-    Part part,
+    Part updatedPart,
     List<ImageItem> imageItems,
   ) async {
-    return transaction(() async {
-      await update(parts).replace(part);
+    if (updatedPart.accountId != currentAccountId) {
+      throw StateError('アクティブなアカウント外のデータは更新できません');
+    }
 
-      // 既存画像取得
+    return transaction(() async {
+      await update(parts).replace(updatedPart);
+
       final existing = await (select(partsImages)
-            ..where((t) => t.partId.equals(part.id)))
+            ..where((t) => t.partId.equals(updatedPart.id)))
           .get();
 
       final existingPaths = existing.map((e) => e.imagePath).toSet();
       final newPaths = imageItems.map((e) => e.file.path).toSet();
 
-      // 削除された画像のみ物理削除
       final removed = existingPaths.difference(newPaths);
-
-      for (final path in removed) {
-        final file = File(path);
+      for (final removedPath in removed) {
+        final file = File(removedPath);
         if (await file.exists()) {
           await file.delete();
         }
       }
 
-      // DB全削除
-      await (delete(partsImages)..where((t) => t.partId.equals(part.id))).go();
+      await (delete(partsImages)..where((t) => t.partId.equals(updatedPart.id)))
+          .go();
 
-      // 再登録
       await _insertImages(
-        part.id,
+        updatedPart.id,
         imageItems.map((e) => File(e.file.path)).toList(),
       );
     });
   }
 
-  /// Part 削除時に参考画像も削除
   Future<int> deletePart(int id) async {
     return transaction(() async {
+      final target = await getPartById(id);
+      if (target == null) {
+        return 0;
+      }
       await _deleteImagesByPart(id);
       return (delete(parts)..where((t) => t.id.equals(id))).go();
     });
   }
-
-  // ---- 以下は PartDao 内部実装（外から呼ばれない）----
 
   Future<void> _insertImages(
     int partId,
@@ -144,8 +210,6 @@ extension PartDao on AppDatabase {
       final file = images[i];
 
       String finalPath;
-
-      // 既に app ディレクトリ内ならコピーしない
       if (file.path.startsWith(imageDir.path)) {
         finalPath = file.path;
       } else {
@@ -167,17 +231,6 @@ extension PartDao on AppDatabase {
   }
 
   Future<void> _deleteImagesByPart(int partId) async {
-    /*final rows = await (select(partsImages)
-          ..where((t) => t.partId.equals(partId)))
-        .get();
-
-    for (final row in rows) {
-      final file = File(row.imagePath);
-      if (await file.exists()) {
-        await file.delete();
-      }
-    }
-*/
     await (delete(partsImages)..where((t) => t.partId.equals(partId))).go();
   }
 

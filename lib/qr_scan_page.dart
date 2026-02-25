@@ -2,6 +2,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:flutter/material.dart';
 
 import 'db/database.dart';
+import 'db/parts.dart';
 import 'edit_page.dart';
 
 class QrScanPage extends StatefulWidget {
@@ -41,16 +42,14 @@ class _QrScanPageState extends State<QrScanPage> {
 
     final db = AppDatabase.instance;
 
-    final partsList = await db.select(db.parts).get();
-    final index = partsList.indexWhere((p) => p.id == partId);
-    if (index == -1) {
+    final part = await db.getPartById(partId);
+    if (part == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('このQRコードに対応する部品が見つかりませんでした。')),
       );
       setState(() => _isScanning = false);
       return;
     }
-    final part = partsList[index];
 
     // 部品詳細ページへ遷移
     await Navigator.push(
