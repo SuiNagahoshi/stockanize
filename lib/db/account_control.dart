@@ -267,12 +267,10 @@ extension AccountControlDao on AppDatabase {
       throw StateError('招待対象ユーザが存在しません');
     }
 
-    await into(accountMembers).insertOnConflictUpdate(
-      AccountMembersCompanion.insert(
-        accountId: accountId,
-        userId: user.id,
-        role: Value(role),
-      ),
+    await _ensureAccountMemberRow(
+      accountId: accountId,
+      userId: user.id,
+      role: role,
     );
   }
 
@@ -506,21 +504,24 @@ extension AccountControlDao on AppDatabase {
       throw StateError('招待の有効期限が切れています');
     }
 
+    final group = await (select(userGroups)
+          ..where((g) => g.id.equals(invite.groupId)))
+        .getSingleOrNull();
+    if (group == null) {
+      throw StateError('招待先グループが存在しません');
+    }
+
     await transaction(() async {
-      await into(accountMembers).insertOnConflictUpdate(
-        AccountMembersCompanion.insert(
-          accountId: currentAccountId,
-          userId: user.id,
-          role: const Value('member'),
-        ),
+      await _ensureAccountMemberRow(
+        accountId: group.accountId,
+        userId: user.id,
+        role: 'member',
       );
 
-      await into(groupMembers).insertOnConflictUpdate(
-        GroupMembersCompanion.insert(
-          groupId: invite.groupId,
-          userId: user.id,
-          role: const Value('member'),
-        ),
+      await _ensureGroupMemberRow(
+        groupId: invite.groupId,
+        userId: user.id,
+        role: 'member',
       );
 
       await (update(groupInvites)..where((i) => i.id.equals(inviteId))).write(
@@ -529,6 +530,12 @@ extension AccountControlDao on AppDatabase {
         ),
       );
     });
+
+    await setActiveScope(
+      accountId: group.accountId,
+      groupId: group.id,
+      userId: user.id,
+    );
   }
 
   Future<void> declineInvite(int inviteId) async {
@@ -634,12 +641,10 @@ extension AccountControlDao on AppDatabase {
       ),
     );
 
-    await into(accountMembers).insertOnConflictUpdate(
-      AccountMembersCompanion.insert(
-        accountId: accountId,
-        userId: user.id,
-        role: const Value('owner'),
-      ),
+    await _ensureAccountMemberRow(
+      accountId: accountId,
+      userId: user.id,
+      role: 'owner',
     );
 
     return accountId;
@@ -663,5 +668,45 @@ extension AccountControlDao on AppDatabase {
     }
 
     return _ensurePersonalAccount(user);
+  }
+
+  Future<void> _ensureAccountMemberRow({
+    required String accountId,
+    required int userId,
+    required String role,
+  }) async {
+    final existing = await (select(accountMembers)
+          ..where((m) => m.accountId.equals(accountId))
+          ..where((m) => m.userId.equals(userId)))
+        .getSingleOrNull();
+    if (existing != null) return;
+
+    await into(accountMembers).insert(
+      AccountMembersCompanion.insert(
+        accountId: accountId,
+        userId: userId,
+        role: Value(role),
+      ),
+    );
+  }
+
+  Future<void> _ensureGroupMemberRow({
+    required int groupId,
+    required int userId,
+    required String role,
+  }) async {
+    final existing = await (select(groupMembers)
+          ..where((m) => m.groupId.equals(groupId))
+          ..where((m) => m.userId.equals(userId)))
+        .getSingleOrNull();
+    if (existing != null) return;
+
+    await into(groupMembers).insert(
+      GroupMembersCompanion.insert(
+        groupId: groupId,
+        userId: userId,
+        role: Value(role),
+      ),
+    );
   }
 }
