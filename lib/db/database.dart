@@ -111,9 +111,11 @@ class AppDatabase extends _$AppDatabase {
     await into(accounts).insertOnConflictUpdate(
       AccountsCompanion.insert(
         id: defaultAccountId,
-        name: 'Personal',
+        name: 'Default Account',
       ),
     );
+
+    await _normalizeLegacyPersonalAccountNames();
 
     final appContext = await (select(appContexts)
           ..where((t) => t.id.equals(contextRowId)))
@@ -142,6 +144,44 @@ class AppDatabase extends _$AppDatabase {
       'UPDATE parts SET account_id = ? WHERE account_id IS NULL',
       <Object>[currentAccountId],
     );
+  }
+
+  Future<void> _normalizeLegacyPersonalAccountNames() async {
+    final legacyAccounts = await customSelect(
+      '''
+      SELECT a.id AS account_id, a.name AS account_name, u.username AS username
+      FROM accounts a
+      JOIN account_members am ON am.account_id = a.id
+      JOIN users u ON u.id = am.user_id
+      WHERE a.id LIKE 'acc-user-%'
+      ''',
+    ).get();
+
+    for (final row in legacyAccounts) {
+      final accountId = row.read<String>('account_id');
+      final accountName = row.read<String>('account_name');
+      final username = row.read<String>('username');
+      final legacyName = '$username personal';
+      if (accountName != legacyName) continue;
+
+      final duplicate = await customSelect(
+        '''
+        SELECT 1
+        FROM accounts
+        WHERE name = ? AND id <> ?
+        LIMIT 1
+        ''',
+        variables: [
+          Variable.withString(username),
+          Variable.withString(accountId),
+        ],
+      ).getSingleOrNull();
+      if (duplicate != null) continue;
+
+      await (update(accounts)..where((a) => a.id.equals(accountId))).write(
+        AccountsCompanion(name: Value(username)),
+      );
+    }
   }
 
   Future<void> initializeTenantContext() async {
