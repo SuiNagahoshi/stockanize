@@ -45,24 +45,46 @@ class AppDatabase extends _$AppDatabase {
         },
         onUpgrade: (m, from, to) async {
           if (from == 1) {
-            await m.createTable(partsImages);
+            if (!await _tableExists('parts_images')) {
+              await m.createTable(partsImages);
+            }
           }
 
           if (from < 3) {
-            await m.createTable(accounts);
-            await m.createTable(userGroups);
-            await m.createTable(appContexts);
-            await m.addColumn(parts, parts.accountId);
-            await m.addColumn(parts, parts.groupId);
+            if (!await _tableExists('accounts')) {
+              await m.createTable(accounts);
+            }
+            if (!await _tableExists('user_groups')) {
+              await m.createTable(userGroups);
+            }
+            if (!await _tableExists('app_contexts')) {
+              await m.createTable(appContexts);
+            }
+            if (!await _columnExists('parts', 'account_id')) {
+              await m.addColumn(parts, parts.accountId);
+            }
+            if (!await _columnExists('parts', 'group_id')) {
+              await m.addColumn(parts, parts.groupId);
+            }
           }
 
           if (from < 4) {
-            await m.createTable(users);
-            await m.createTable(accountMembers);
-            await m.createTable(groupMembers);
-            await m.createTable(groupInvites);
+            if (!await _tableExists('users')) {
+              await m.createTable(users);
+            }
+            if (!await _tableExists('account_members')) {
+              await m.createTable(accountMembers);
+            }
+            if (!await _tableExists('group_members')) {
+              await m.createTable(groupMembers);
+            }
+            if (!await _tableExists('group_invites')) {
+              await m.createTable(groupInvites);
+            }
 
-            if (from >= 3) {
+            if (from >= 3 &&
+                await _tableExists('app_contexts') &&
+                !await _columnExists('app_contexts', 'active_user_id')) {
               await m.addColumn(appContexts, appContexts.activeUserId);
             }
           }
@@ -71,6 +93,19 @@ class AppDatabase extends _$AppDatabase {
           await _bootstrapTenantContext();
         },
       );
+
+  Future<bool> _tableExists(String tableName) async {
+    final rows = await customSelect(
+      'SELECT name FROM sqlite_master WHERE type = ? AND name = ?',
+      variables: [Variable.withString('table'), Variable.withString(tableName)],
+    ).get();
+    return rows.isNotEmpty;
+  }
+
+  Future<bool> _columnExists(String tableName, String columnName) async {
+    final rows = await customSelect('PRAGMA table_info($tableName)').get();
+    return rows.any((row) => row.data['name'] == columnName);
+  }
 
   Future<void> _bootstrapTenantContext() async {
     await into(accounts).insertOnConflictUpdate(
