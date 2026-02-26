@@ -25,8 +25,8 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
   final _registerUserController = TextEditingController();
   final _registerPasswordController = TextEditingController();
   final _registerPasswordConfirmController = TextEditingController();
+
   bool _busy = false;
-  bool _showRegisterForm = false;
 
   @override
   void dispose() {
@@ -84,7 +84,6 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
       _registerUserController.clear();
       _registerPasswordController.clear();
       _registerPasswordConfirmController.clear();
-      _showRegisterForm = false;
     });
   }
 
@@ -392,60 +391,45 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                     child: const Text('ログイン'),
                   ),
                 ),
+                const Divider(height: 24),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('新規登録', style: TextStyle(fontSize: 16)),
+                ),
                 const SizedBox(height: 8),
-                TextButton(
-                  onPressed: _busy
-                      ? null
-                      : () {
-                          setState(() {
-                            _showRegisterForm = !_showRegisterForm;
-                          });
-                        },
+                const Align(
+                  alignment: Alignment.centerLeft,
                   child: Text(
-                    _showRegisterForm ? '新規登録を閉じる' : 'アカウントをお持ちでない方は新規登録',
+                    'ユーザ名: 3-32文字（英小文字/数字/._-）\n'
+                    'パスワード: 8文字以上',
+                    style: TextStyle(fontSize: 12, color: Colors.black54),
                   ),
                 ),
-                if (_showRegisterForm) ...[
-                  const Divider(height: 24),
-                  const Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text('新規登録', style: TextStyle(fontSize: 16)),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _registerUserController,
+                  decoration: const InputDecoration(labelText: 'ユーザ名'),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _registerPasswordController,
+                  decoration: const InputDecoration(labelText: 'パスワード'),
+                  obscureText: true,
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _registerPasswordConfirmController,
+                  decoration: const InputDecoration(labelText: 'パスワード（確認）'),
+                  obscureText: true,
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.tonal(
+                    onPressed: _busy ? null : _register,
+                    child: const Text('登録'),
                   ),
-                  const SizedBox(height: 8),
-                  const Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'ユーザ名: 3-32文字（英小文字/数字/._-）\n'
-                      'パスワード: 8文字以上',
-                      style: TextStyle(fontSize: 12, color: Colors.black54),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _registerUserController,
-                    decoration: const InputDecoration(labelText: 'ユーザ名'),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _registerPasswordController,
-                    decoration: const InputDecoration(labelText: 'パスワード'),
-                    obscureText: true,
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _registerPasswordConfirmController,
-                    decoration: const InputDecoration(labelText: 'パスワード（確認）'),
-                    obscureText: true,
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.tonal(
-                      onPressed: _busy ? null : _register,
-                      child: const Text('登録'),
-                    ),
-                  ),
-                ],
+                ),
               ],
             ),
           ),

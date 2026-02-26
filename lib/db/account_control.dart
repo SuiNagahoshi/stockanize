@@ -506,17 +506,10 @@ extension AccountControlDao on AppDatabase {
       throw StateError('招待の有効期限が切れています');
     }
 
-    final group = await (select(userGroups)
-          ..where((g) => g.id.equals(invite.groupId)))
-        .getSingleOrNull();
-    if (group == null) {
-      throw StateError('招待先グループが存在しません');
-    }
-
     await transaction(() async {
       await into(accountMembers).insertOnConflictUpdate(
         AccountMembersCompanion.insert(
-          accountId: group.accountId,
+          accountId: currentAccountId,
           userId: user.id,
           role: const Value('member'),
         ),
@@ -536,12 +529,6 @@ extension AccountControlDao on AppDatabase {
         ),
       );
     });
-
-    await setActiveScope(
-      accountId: group.accountId,
-      groupId: group.id,
-      userId: user.id,
-    );
   }
 
   Future<void> declineInvite(int inviteId) async {
@@ -625,7 +612,7 @@ extension AccountControlDao on AppDatabase {
   }
 
   void _validatePassword(String password) {
-    if (password.length < 8) {
+    if (password.trim().length < 8) {
       throw ArgumentError('パスワードは8文字以上で入力してください');
     }
   }
@@ -638,7 +625,7 @@ extension AccountControlDao on AppDatabase {
 
   Future<String> _ensurePersonalAccount(User user) async {
     final accountId = 'acc-user-${user.id}';
-    final accountName = '${user.username} personal';
+    final accountName = user.username;
 
     await into(accounts).insertOnConflictUpdate(
       AccountsCompanion.insert(
