@@ -93,6 +93,10 @@ class LocalStockRepository implements StockRepository {
       _db.watchPendingInvitesForCurrentUser();
 
   @override
+  Stream<List<GroupInviteView>> watchSentInvitesForCurrentUser() =>
+      _db.watchSentInvitesForCurrentUser();
+
+  @override
   Future<void> acceptInvite(int inviteId) => _db.acceptInvite(inviteId);
 
   @override

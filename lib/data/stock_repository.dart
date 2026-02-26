@@ -33,6 +33,7 @@ abstract class StockRepository {
     required String inviteeUsername,
   });
   Stream<List<GroupInviteView>> watchPendingInvitesForCurrentUser();
+  Stream<List<GroupInviteView>> watchSentInvitesForCurrentUser();
   Future<void> acceptInvite(int inviteId);
   Future<void> declineInvite(int inviteId);
 

@@ -453,6 +453,37 @@ extension AccountControlDao on AppDatabase {
     });
   }
 
+  Stream<List<GroupInviteView>> watchSentInvitesForCurrentUser() async* {
+    final userId = currentUserId;
+    if (userId == null) {
+      yield const <GroupInviteView>[];
+      return;
+    }
+
+    final query = select(groupInvites).join([
+      innerJoin(userGroups, userGroups.id.equalsExp(groupInvites.groupId)),
+    ])
+      ..where(groupInvites.invitedByUserId.equals(userId))
+      ..where(groupInvites.status.equals('pending'));
+
+    yield* query.watch().map((rows) {
+      return rows.map((row) {
+        final invite = row.readTable(groupInvites);
+        final group = row.readTable(userGroups);
+        return GroupInviteView(
+          id: invite.id,
+          groupId: invite.groupId,
+          groupName: group.name,
+          inviteeUsername: invite.inviteeUsername,
+          token: invite.token,
+          status: invite.status,
+          expiresAt: invite.expiresAt,
+        );
+      }).toList()
+        ..sort((a, b) => b.id.compareTo(a.id));
+    });
+  }
+
   Future<void> acceptInvite(int inviteId) async {
     final user = await _requireCurrentUser();
 
@@ -475,10 +506,17 @@ extension AccountControlDao on AppDatabase {
       throw StateError('招待の有効期限が切れています');
     }
 
+    final group = await (select(userGroups)
+          ..where((g) => g.id.equals(invite.groupId)))
+        .getSingleOrNull();
+    if (group == null) {
+      throw StateError('招待先グループが存在しません');
+    }
+
     await transaction(() async {
       await into(accountMembers).insertOnConflictUpdate(
         AccountMembersCompanion.insert(
-          accountId: currentAccountId,
+          accountId: group.accountId,
           userId: user.id,
           role: const Value('member'),
         ),
@@ -498,6 +536,12 @@ extension AccountControlDao on AppDatabase {
         ),
       );
     });
+
+    await setActiveScope(
+      accountId: group.accountId,
+      groupId: group.id,
+      userId: user.id,
+    );
   }
 
   Future<void> declineInvite(int inviteId) async {
@@ -581,9 +625,8 @@ extension AccountControlDao on AppDatabase {
   }
 
   void _validatePassword(String password) {
-    final hasAllowed = RegExp(r'^[\x21-\x7E]+$').hasMatch(password);
-    if (password.length < 8 || !hasAllowed) {
-      throw ArgumentError('パスワードは8文字以上の英数字もしくは記号を使用してください');
+    if (password.length < 8) {
+      throw ArgumentError('パスワードは8文字以上で入力してください');
     }
   }
 

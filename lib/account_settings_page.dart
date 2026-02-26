@@ -22,12 +22,19 @@ class AccountSettingsPage extends StatefulWidget {
 class _AccountSettingsPageState extends State<AccountSettingsPage> {
   final _loginUserController = TextEditingController();
   final _loginPasswordController = TextEditingController();
+  final _registerUserController = TextEditingController();
+  final _registerPasswordController = TextEditingController();
+  final _registerPasswordConfirmController = TextEditingController();
   bool _busy = false;
+  bool _showRegisterForm = false;
 
   @override
   void dispose() {
     _loginUserController.dispose();
     _loginPasswordController.dispose();
+    _registerUserController.dispose();
+    _registerPasswordController.dispose();
+    _registerPasswordConfirmController.dispose();
     super.dispose();
   }
 
@@ -62,78 +69,22 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     });
   }
 
-  Future<void> _showRegisterDialog() async {
-    final usernameController = TextEditingController();
-    final passwordController = TextEditingController();
-    final confirmController = TextEditingController();
+  Future<void> _register() async {
+    if (_registerPasswordController.text !=
+        _registerPasswordConfirmController.text) {
+      _snack('確認用パスワードが一致しません');
+      return;
+    }
 
-    final payload = await showDialog<_RegisterPayload>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('新規登録'),
-        content: SizedBox(
-          width: 360,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'ユーザ名: 3-32文字（英小文字/数字/._-）\n'
-                  'パスワード: 8文字以上の英数字または記号',
-                  style: TextStyle(fontSize: 12, color: Colors.black54),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: usernameController,
-                decoration: const InputDecoration(labelText: 'ユーザ名'),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: passwordController,
-                decoration: const InputDecoration(labelText: 'パスワード'),
-                obscureText: true,
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: confirmController,
-                decoration: const InputDecoration(labelText: 'パスワード（確認）'),
-                obscureText: true,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('キャンセル'),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (passwordController.text != confirmController.text) {
-                _snack('確認用パスワードが一致しません');
-                return;
-              }
-              Navigator.of(dialogContext).pop(
-                _RegisterPayload(
-                  username: usernameController.text,
-                  password: passwordController.text,
-                ),
-              );
-            },
-            child: const Text('登録'),
-          ),
-        ],
-      ),
-    );
-
-    if (payload == null) return;
     await _run(() async {
       await widget.repository.registerUser(
-        username: payload.username,
-        password: payload.password,
+        username: _registerUserController.text,
+        password: _registerPasswordController.text,
       );
+      _registerUserController.clear();
+      _registerPasswordController.clear();
+      _registerPasswordConfirmController.clear();
+      _showRegisterForm = false;
     });
   }
 
@@ -443,9 +394,58 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                 ),
                 const SizedBox(height: 8),
                 TextButton(
-                  onPressed: _busy ? null : _showRegisterDialog,
-                  child: const Text('アカウントをお持ちでない方は新規登録'),
+                  onPressed: _busy
+                      ? null
+                      : () {
+                          setState(() {
+                            _showRegisterForm = !_showRegisterForm;
+                          });
+                        },
+                  child: Text(
+                    _showRegisterForm ? '新規登録を閉じる' : 'アカウントをお持ちでない方は新規登録',
+                  ),
                 ),
+                if (_showRegisterForm) ...[
+                  const Divider(height: 24),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('新規登録', style: TextStyle(fontSize: 16)),
+                  ),
+                  const SizedBox(height: 8),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'ユーザ名: 3-32文字（英小文字/数字/._-）\n'
+                      'パスワード: 8文字以上',
+                      style: TextStyle(fontSize: 12, color: Colors.black54),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _registerUserController,
+                    decoration: const InputDecoration(labelText: 'ユーザ名'),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _registerPasswordController,
+                    decoration: const InputDecoration(labelText: 'パスワード'),
+                    obscureText: true,
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _registerPasswordConfirmController,
+                    decoration: const InputDecoration(labelText: 'パスワード（確認）'),
+                    obscureText: true,
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.tonal(
+                      onPressed: _busy ? null : _register,
+                      child: const Text('登録'),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -608,67 +608,85 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
         const SizedBox(height: 12),
         StreamBuilder<List<GroupInviteView>>(
           stream: widget.repository.watchPendingInvitesForCurrentUser(),
-          builder: (context, inviteSnapshot) {
-            final invites = inviteSnapshot.data ?? const <GroupInviteView>[];
-            return Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('招待 (${invites.length})',
-                        style: const TextStyle(fontSize: 18)),
-                    const SizedBox(height: 8),
-                    if (invites.isEmpty)
-                      const Text('未処理の招待はありません')
-                    else
-                      ...invites.map((invite) => ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(invite.groupName),
-                            subtitle: Text('期限: ${invite.expiresAt}'),
-                            trailing: Wrap(
-                              spacing: 8,
-                              children: [
-                                OutlinedButton(
-                                  onPressed: _busy
-                                      ? null
-                                      : () async {
-                                          await _run(() async {
-                                            await widget.repository
-                                                .declineInvite(invite.id);
-                                          });
-                                        },
-                                  child: const Text('辞退'),
+          builder: (context, receivedSnapshot) {
+            final received = receivedSnapshot.data ?? const <GroupInviteView>[];
+            return StreamBuilder<List<GroupInviteView>>(
+              stream: widget.repository.watchSentInvitesForCurrentUser(),
+              builder: (context, sentSnapshot) {
+                final sent = sentSnapshot.data ?? const <GroupInviteView>[];
+                if (received.isEmpty && sent.isEmpty) {
+                  return const SizedBox.shrink();
+                }
+
+                return Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '招待（受信 ${received.length} / 送信 ${sent.length}）',
+                          style: const TextStyle(fontSize: 18),
+                        ),
+                        if (received.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          const Text('受信した招待',
+                              style: TextStyle(fontWeight: FontWeight.w600)),
+                          ...received.map((invite) => ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                title: Text(invite.groupName),
+                                subtitle: Text('期限: ${invite.expiresAt}'),
+                                trailing: Wrap(
+                                  spacing: 8,
+                                  children: [
+                                    OutlinedButton(
+                                      onPressed: _busy
+                                          ? null
+                                          : () async {
+                                              await _run(() async {
+                                                await widget.repository
+                                                    .declineInvite(invite.id);
+                                              });
+                                            },
+                                      child: const Text('辞退'),
+                                    ),
+                                    FilledButton(
+                                      onPressed: _busy
+                                          ? null
+                                          : () async {
+                                              await _run(() async {
+                                                await widget.repository
+                                                    .acceptInvite(invite.id);
+                                              }, okMessage: 'グループに参加しました');
+                                            },
+                                      child: const Text('参加'),
+                                    ),
+                                  ],
                                 ),
-                                FilledButton(
-                                  onPressed: _busy
-                                      ? null
-                                      : () async {
-                                          await _run(() async {
-                                            await widget.repository
-                                                .acceptInvite(invite.id);
-                                          }, okMessage: 'グループに参加しました');
-                                        },
-                                  child: const Text('参加'),
-                                ),
-                              ],
-                            ),
-                          )),
-                  ],
-                ),
-              ),
+                              )),
+                        ],
+                        if (sent.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          const Text('送信した招待',
+                              style: TextStyle(fontWeight: FontWeight.w600)),
+                          ...sent.map((invite) => ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                title: Text(invite.groupName),
+                                subtitle:
+                                    Text('招待先: ${invite.inviteeUsername}'),
+                              )),
+                        ],
+                      ],
+                    ),
+                  ),
+                );
+              },
             );
           },
         ),
       ],
     );
   }
-}
-
-class _RegisterPayload {
-  const _RegisterPayload({required this.username, required this.password});
-  final String username;
-  final String password;
 }
 
 class _ChangePasswordPayload {
