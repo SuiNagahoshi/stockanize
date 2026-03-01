@@ -20,6 +20,8 @@ class AccountSettingsPage extends StatefulWidget {
 }
 
 class _AccountSettingsPageState extends State<AccountSettingsPage> {
+  static const String _createAccountDialogAction = '__create_account__';
+
   final _loginUserController = TextEditingController();
   final _loginPasswordController = TextEditingController();
   final _registerUserController = TextEditingController();
@@ -216,25 +218,41 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
       context: context,
       builder: (dialogContext) => SimpleDialog(
         title: const Text('アカウント切り替え'),
-        children: accounts
-            .map(
-              (account) => SimpleDialogOption(
-                onPressed: () => Navigator.of(dialogContext).pop(account.id),
-                child: Text(
-                  account.name,
-                  style: TextStyle(
-                    fontWeight: account.id == widget.db.currentAccountId
-                        ? FontWeight.bold
-                        : FontWeight.normal,
-                  ),
+        children: [
+          ...accounts.map(
+            (account) => SimpleDialogOption(
+              onPressed: () => Navigator.of(dialogContext).pop(account.id),
+              child: Text(
+                account.name,
+                style: TextStyle(
+                  fontWeight: account.id == widget.db.currentAccountId
+                      ? FontWeight.bold
+                      : FontWeight.normal,
                 ),
               ),
-            )
-            .toList(),
+            ),
+          ),
+          const Divider(height: 1),
+          SimpleDialogOption(
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(_createAccountDialogAction),
+            child: const Row(
+              children: [
+                Icon(Icons.add, size: 18),
+                SizedBox(width: 8),
+                Text('アカウント作成'),
+              ],
+            ),
+          ),
+        ],
       ),
     );
 
     if (accountId == null) return;
+    if (accountId == _createAccountDialogAction) {
+      await _showCreateAccountDialog();
+      return;
+    }
     await _run(() => widget.repository.setActiveAccount(accountId));
   }
 
@@ -427,7 +445,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                   width: double.infinity,
                   child: FilledButton.tonal(
                     onPressed: _busy ? null : _register,
-                    child: const Text('登録'),
+                    child: const Text('アカウント作成'),
                   ),
                 ),
               ],
@@ -466,10 +484,6 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                           ? null
                           : () => _showAccountSwitchDialog(accounts),
                       child: const Text('アカウント切り替え'),
-                    ),
-                    FilledButton.tonal(
-                      onPressed: _busy ? null : _showCreateAccountDialog,
-                      child: const Text('アカウント作成'),
                     ),
                     OutlinedButton(
                       onPressed: _busy ? null : _showChangePasswordDialog,
