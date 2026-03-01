@@ -188,8 +188,9 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
 
   Future<void> _showCreateAccountDialog() async {
     final nameController = TextEditingController();
+    final passwordController = TextEditingController();
 
-    final accountName = await showDialog<String>(
+    final payload = await showDialog<_CreateAccountPayload>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('アカウント作成'),
@@ -202,6 +203,12 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                 controller: nameController,
                 decoration: const InputDecoration(labelText: 'アカウント名'),
               ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: passwordController,
+                decoration: const InputDecoration(labelText: 'パスワード'),
+                obscureText: true,
+              ),
             ],
           ),
         ),
@@ -212,7 +219,12 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
           ),
           FilledButton(
             onPressed: () {
-              Navigator.of(dialogContext).pop(nameController.text);
+              Navigator.of(dialogContext).pop(
+                _CreateAccountPayload(
+                  name: nameController.text,
+                  password: passwordController.text,
+                ),
+              );
             },
             child: const Text('作成'),
           ),
@@ -220,9 +232,12 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
       ),
     );
 
-    if (accountName == null) return;
+    if (payload == null) return;
     await _run(() async {
-      await widget.repository.createAccount(accountName);
+      await widget.repository.createAccount(
+        payload.name,
+        currentPassword: payload.password,
+      );
     });
   }
 
@@ -740,6 +755,12 @@ class _ChangePasswordPayload {
   });
   final String currentPassword;
   final String newPassword;
+}
+
+class _CreateAccountPayload {
+  const _CreateAccountPayload({required this.name, required this.password});
+  final String name;
+  final String password;
 }
 
 class _CreateGroupPayload {

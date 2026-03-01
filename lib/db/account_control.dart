@@ -195,14 +195,15 @@ extension AccountControlDao on AppDatabase {
   }
 
   Future<String> createAccount(
-    String name,
-  ) async {
+    String name, {
+    required String currentPassword,
+  }) async {
     final normalized = name.trim();
     if (normalized.isEmpty) {
       throw ArgumentError('アカウント名は必須です');
     }
 
-    final user = await _requireCurrentUser();
+    final user = await _requireCurrentUserAndVerifyPassword(currentPassword);
 
     final id = 'acc-${DateTime.now().millisecondsSinceEpoch}';
     await into(accounts).insert(

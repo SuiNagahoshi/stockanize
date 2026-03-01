@@ -48,7 +48,9 @@ class LocalStockRepository implements StockRepository {
   Stream<List<Account>> watchAccounts() => _db.watchAccounts();
 
   @override
-  Future<String> createAccount(String name) => _db.createAccount(name);
+  Future<String> createAccount(String name,
+          {required String currentPassword}) =>
+      _db.createAccount(name, currentPassword: currentPassword);
 
   @override
   Future<void> renameAccount(String accountId, String newName) =>
