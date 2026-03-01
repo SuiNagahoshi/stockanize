@@ -103,8 +103,14 @@ class LocalStockRepository implements StockRepository {
   Future<void> declineInvite(int inviteId) => _db.declineInvite(inviteId);
 
   @override
-  Future<void> setActiveAccount(String accountId) =>
-      _db.setActiveAccount(accountId);
+  Future<void> setActiveAccount(
+    String accountId, {
+    required String currentPassword,
+  }) =>
+      _db.switchActiveAccount(
+        accountId: accountId,
+        currentPassword: currentPassword,
+      );
 
   @override
   Future<void> setActiveGroup(int? groupId) => _db.setActiveGroup(groupId);

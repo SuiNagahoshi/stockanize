@@ -37,7 +37,10 @@ abstract class StockRepository {
   Future<void> acceptInvite(int inviteId);
   Future<void> declineInvite(int inviteId);
 
-  Future<void> setActiveAccount(String accountId);
+  Future<void> setActiveAccount(
+    String accountId, {
+    required String currentPassword,
+  });
   Future<void> setActiveGroup(int? groupId);
   Future<void> setActiveUser(int? userId);
 }

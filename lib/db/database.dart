@@ -205,21 +205,38 @@ class AppDatabase extends _$AppDatabase {
     _activeUserId = userId;
   }
 
-  Future<void> setActiveAccount(String accountId) async {
-    final userId = _activeUserId;
-    if (userId == null) {
+  Future<void> setActiveAccount(String accountId, {int? userId}) async {
+    final resolvedUserId = userId ?? _activeUserId;
+    final previousGroupId = _activeGroupId;
+    final previousAccountId = _activeAccountId;
+
+    if (accountId == previousAccountId) {
+      return;
+    }
+
+    if (resolvedUserId == null) {
       throw StateError('アカウントを切り替えるにはログインが必要です');
     }
 
     final membership = await (select(accountMembers)
           ..where((m) => m.accountId.equals(accountId))
-          ..where((m) => m.userId.equals(userId)))
+          ..where((m) => m.userId.equals(resolvedUserId)))
         .getSingleOrNull();
     if (membership == null) {
       throw StateError('このユーザは対象アカウントに所属していません');
     }
 
-    await setActiveScope(accountId: accountId, groupId: null, userId: userId);
+    final nextGroupId = await _resolveGroupForAccount(
+      accountId: accountId,
+      userId: resolvedUserId,
+      previousGroupId: previousGroupId,
+    );
+
+    await setActiveScope(
+      accountId: accountId,
+      groupId: nextGroupId,
+      userId: resolvedUserId,
+    );
   }
 
   Future<void> setActiveUser(int? userId) async {
@@ -270,6 +287,38 @@ class AppDatabase extends _$AppDatabase {
   Stream<AppContext?> watchAppContext() {
     return (select(appContexts)..where((t) => t.id.equals(contextRowId)))
         .watchSingleOrNull();
+  }
+
+  Future<int?> _resolveGroupForAccount({
+    required String accountId,
+    required int userId,
+    required int? previousGroupId,
+  }) async {
+    if (previousGroupId != null) {
+      final previousGroupMembership = await (select(userGroups).join([
+        innerJoin(groupMembers, groupMembers.groupId.equalsExp(userGroups.id)),
+      ])
+            ..where(userGroups.id.equals(previousGroupId))
+            ..where(userGroups.accountId.equals(accountId))
+            ..where(groupMembers.userId.equals(userId)))
+          .getSingleOrNull();
+      if (previousGroupMembership != null) {
+        return previousGroupId;
+      }
+    }
+
+    final nextGroups = await (select(userGroups).join([
+      innerJoin(groupMembers, groupMembers.groupId.equalsExp(userGroups.id)),
+    ])
+          ..where(userGroups.accountId.equals(accountId))
+          ..where(groupMembers.userId.equals(userId))
+          ..orderBy([OrderingTerm.asc(userGroups.createdAt)]))
+        .get();
+
+    if (nextGroups.isEmpty) {
+      return null;
+    }
+    return nextGroups.first.readTable(userGroups).id;
   }
 }
 

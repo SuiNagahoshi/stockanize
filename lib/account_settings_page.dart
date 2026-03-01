@@ -205,12 +205,37 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
 
     if (payload == null) return;
     await _run(() async {
-      final id = await widget.repository.createAccount(
+      await widget.repository.createAccount(
         payload.name,
         currentPassword: payload.password,
       );
-      await widget.repository.setActiveAccount(id);
     });
+  }
+
+  Future<String?> _showAccountSwitchPasswordDialog() async {
+    final passwordController = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('パスワード確認'),
+        content: TextField(
+          controller: passwordController,
+          decoration: const InputDecoration(labelText: '現在のパスワード'),
+          obscureText: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('キャンセル'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(passwordController.text),
+            child: const Text('切り替え'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _showAccountSwitchDialog(List<Account> accounts) async {
@@ -253,7 +278,19 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
       await _showCreateAccountDialog();
       return;
     }
-    await _run(() => widget.repository.setActiveAccount(accountId));
+    if (accountId == widget.db.currentAccountId) {
+      return;
+    }
+
+    final password = await _showAccountSwitchPasswordDialog();
+    if (password == null) return;
+
+    await _run(
+      () => widget.repository.setActiveAccount(
+        accountId,
+        currentPassword: password,
+      ),
+    );
   }
 
   Future<void> _showCreateGroupDialog() async {

@@ -111,6 +111,14 @@ extension AccountControlDao on AppDatabase {
     await setActiveUser(null);
   }
 
+  Future<void> switchActiveAccount({
+    required String accountId,
+    required String currentPassword,
+  }) async {
+    final user = await _requireCurrentUserAndVerifyPassword(currentPassword);
+    await setActiveAccount(accountId, userId: user.id);
+  }
+
   Future<void> changePassword({
     required String currentPassword,
     required String newPassword,
