@@ -17,7 +17,7 @@ abstract class StockRepository {
   Future<User?> getCurrentUser();
 
   Stream<List<Account>> watchAccounts();
-  Future<String> createAccount(String name, {required String currentPassword});
+  Future<String> createAccount(String name, {required String accountPassword});
   Future<void> renameAccount(String accountId, String newName);
   Future<void> deleteAccount(String accountId);
 
@@ -39,7 +39,11 @@ abstract class StockRepository {
 
   Future<void> setActiveAccount(
     String accountId, {
-    required String currentPassword,
+    required String accountPassword,
+  });
+  Future<void> setAccountPasswordIfUnset(
+    String accountId, {
+    required String newPassword,
   });
   Future<void> setActiveGroup(int? groupId);
   Future<void> setActiveUser(int? userId);

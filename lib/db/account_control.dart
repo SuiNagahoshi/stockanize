@@ -113,12 +113,29 @@ extension AccountControlDao on AppDatabase {
 
   Future<void> switchActiveAccount({
     required String accountId,
-    required String currentPassword,
+    required String accountPassword,
   }) async {
-    final user = await _requireCurrentUserAndVerifyPassword(
-      currentPassword,
-      actionLabel: 'アカウント切り替え',
+    final user = await _requireCurrentUser();
+    await _ensureAccountMemberForUser(accountId, user.id);
+    final account = await (select(accounts)
+          ..where((a) => a.id.equals(accountId)))
+        .getSingle();
+
+    final passwordHash = account.passwordHash;
+    final passwordSalt = account.passwordSalt;
+    if (passwordHash == null || passwordSalt == null) {
+      throw StateError('アカウントパスワード未設定');
+    }
+
+    final verified = _verifyPasswordWithTolerance(
+      password: accountPassword,
+      salt: passwordSalt,
+      expectedHash: passwordHash,
     );
+    if (!verified) {
+      throw StateError('アカウントパスワードが一致しません');
+    }
+
     await setActiveAccount(accountId, userId: user.id);
   }
 
@@ -199,23 +216,25 @@ extension AccountControlDao on AppDatabase {
 
   Future<String> createAccount(
     String name, {
-    required String currentPassword,
+    required String accountPassword,
   }) async {
     final normalized = name.trim();
     if (normalized.isEmpty) {
       throw ArgumentError('アカウント名は必須です');
     }
-
-    final user = await _requireCurrentUserAndVerifyPassword(
-      currentPassword,
-      actionLabel: 'アカウント作成',
-    );
+    _validatePassword(accountPassword);
+    final user = await _requireCurrentUser();
+    final salt = PasswordHasher.createSalt();
+    final passwordHash = PasswordHasher.hash(accountPassword, salt);
 
     final id = 'acc-${DateTime.now().millisecondsSinceEpoch}';
     await into(accounts).insert(
       AccountsCompanion.insert(
         id: id,
         name: normalized,
+        passwordHash: Value(passwordHash),
+        passwordSalt: Value(salt),
+        passwordSetAt: Value(DateTime.now()),
       ),
     );
 
@@ -229,6 +248,33 @@ extension AccountControlDao on AppDatabase {
 
     await setActiveScope(accountId: id, groupId: null, userId: user.id);
     return id;
+  }
+
+  Future<void> setAccountPasswordIfUnset({
+    required String accountId,
+    required String newPassword,
+  }) async {
+    _validatePassword(newPassword);
+    final user = await _requireCurrentUser();
+    await _ensureAccountMemberForUser(accountId, user.id);
+
+    final account = await (select(accounts)
+          ..where((a) => a.id.equals(accountId)))
+        .getSingle();
+    if (account.passwordHash != null || account.passwordSalt != null) {
+      throw StateError('アカウントパスワードは既に設定されています');
+    }
+
+    final salt = PasswordHasher.createSalt();
+    final hash = PasswordHasher.hash(newPassword, salt);
+
+    await (update(accounts)..where((a) => a.id.equals(accountId))).write(
+      AccountsCompanion(
+        passwordHash: Value(hash),
+        passwordSalt: Value(salt),
+        passwordSetAt: Value(DateTime.now()),
+      ),
+    );
   }
 
   Future<void> renameAccount(String accountId, String newName) async {
@@ -581,24 +627,6 @@ extension AccountControlDao on AppDatabase {
     return user;
   }
 
-  Future<User> _requireCurrentUserAndVerifyPassword(
-    String password, {
-    required String actionLabel,
-  }) async {
-    final user = await _requireCurrentUser();
-    final verified = _verifyPasswordWithTolerance(
-      password: password,
-      salt: user.passwordSalt,
-      expectedHash: user.passwordHash,
-    );
-    if (!verified) {
-      throw StateError(
-        '$actionLabelに必要なパスワードが一致しません。ログイン時と同じパスワードを入力してください。',
-      );
-    }
-    return user;
-  }
-
   bool _verifyPasswordWithTolerance({
     required String password,
     required String salt,
@@ -627,6 +655,10 @@ extension AccountControlDao on AppDatabase {
       throw StateError('ログインが必要です');
     }
 
+    await _ensureAccountMemberForUser(accountId, userId);
+  }
+
+  Future<void> _ensureAccountMemberForUser(String accountId, int userId) async {
     final membership = await (select(accountMembers)
           ..where((m) => m.accountId.equals(accountId))
           ..where((m) => m.userId.equals(userId)))

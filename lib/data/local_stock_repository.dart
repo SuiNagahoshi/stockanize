@@ -49,8 +49,8 @@ class LocalStockRepository implements StockRepository {
 
   @override
   Future<String> createAccount(String name,
-          {required String currentPassword}) =>
-      _db.createAccount(name, currentPassword: currentPassword);
+          {required String accountPassword}) =>
+      _db.createAccount(name, accountPassword: accountPassword);
 
   @override
   Future<void> renameAccount(String accountId, String newName) =>
@@ -105,11 +105,21 @@ class LocalStockRepository implements StockRepository {
   @override
   Future<void> setActiveAccount(
     String accountId, {
-    required String currentPassword,
+    required String accountPassword,
   }) =>
       _db.switchActiveAccount(
         accountId: accountId,
-        currentPassword: currentPassword,
+        accountPassword: accountPassword,
+      );
+
+  @override
+  Future<void> setAccountPasswordIfUnset(
+    String accountId, {
+    required String newPassword,
+  }) =>
+      _db.setAccountPasswordIfUnset(
+        accountId: accountId,
+        newPassword: newPassword,
       );
 
   @override
