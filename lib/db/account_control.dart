@@ -503,6 +503,7 @@ extension AccountControlDao on AppDatabase {
       innerJoin(userGroups, userGroups.id.equalsExp(groupInvites.groupId)),
     ])
       ..where(groupInvites.inviteeUsername.equals(username))
+      ..where(userGroups.accountId.equals(currentAccountId))
       ..where(groupInvites.status.equals('pending'));
 
     yield* query.watch().map((rows) {
@@ -534,6 +535,7 @@ extension AccountControlDao on AppDatabase {
       innerJoin(userGroups, userGroups.id.equalsExp(groupInvites.groupId)),
     ])
       ..where(groupInvites.invitedByUserId.equals(userId))
+      ..where(userGroups.accountId.equals(currentAccountId))
       ..where(groupInvites.status.equals('pending'));
 
     yield* query.watch().map((rows) {

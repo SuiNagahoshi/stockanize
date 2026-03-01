@@ -120,5 +120,39 @@ void main() {
         ),
       );
     });
+
+    test('sent invites are scoped by current account', () async {
+      await db.registerUser(username: 'bob', password: 'bob-pass-123');
+
+      final accountA =
+          await db.createAccount('scope-a', accountPassword: 'scope-a-pass');
+      final groupA = await db.createGroup('group-a');
+      await db.inviteUserToGroup(groupId: groupA, inviteeUsername: 'bob');
+
+      final accountB =
+          await db.createAccount('scope-b', accountPassword: 'scope-b-pass');
+      final groupB = await db.createGroup('group-b');
+      await db.inviteUserToGroup(groupId: groupB, inviteeUsername: 'bob');
+
+      final sentOnB = await db.watchSentInvitesForCurrentUser().first;
+      expect(sentOnB.length, 1);
+      expect(sentOnB.first.groupName, 'group-b');
+
+      await db.switchActiveAccount(
+        accountId: accountA,
+        accountPassword: 'scope-a-pass',
+      );
+      final sentOnA = await db.watchSentInvitesForCurrentUser().first;
+      expect(sentOnA.length, 1);
+      expect(sentOnA.first.groupName, 'group-a');
+
+      await db.switchActiveAccount(
+        accountId: accountB,
+        accountPassword: 'scope-b-pass',
+      );
+      final sentOnBAgain = await db.watchSentInvitesForCurrentUser().first;
+      expect(sentOnBAgain.length, 1);
+      expect(sentOnBAgain.first.groupName, 'group-b');
+    });
   });
 }
