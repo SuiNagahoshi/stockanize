@@ -62,15 +62,16 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
   }
 
   String _friendlyErrorMessage(Object error) {
-    var message = error.toString();
-    const prefixes = <String>['Bad state: ', 'Invalid argument(s): '];
-    for (final prefix in prefixes) {
-      if (message.startsWith(prefix)) {
-        message = message.substring(prefix.length);
-        break;
-      }
+    final message = _extractMessage(error);
+    if (message.contains('アカウントパスワードが一致しません')) {
+      return 'アカウント切り替えに失敗しました。対象アカウントのパスワードを確認してください。';
     }
-
+    if (message.contains('アカウントパスワード未設定')) {
+      return 'このアカウントはまだパスワード未設定です。初回設定を行ってください。';
+    }
+    if (message.contains('アカウントパスワードは既に設定されています')) {
+      return 'このアカウントのパスワードは既に設定済みです。設定済みのパスワードで切り替えてください。';
+    }
     if (message.contains('パスワードが正しくありません') ||
         message.contains('現在のパスワードが正しくありません')) {
       return 'パスワードが一致しません。入力したパスワードを確認してください。';
@@ -86,6 +87,17 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     }
     if (message.contains('対象グループに参加していません')) {
       return '対象グループに参加していないため、この操作は実行できません。';
+    }
+    return message;
+  }
+
+  String _extractMessage(Object error) {
+    var message = error.toString();
+    const prefixes = <String>['Bad state: ', 'Invalid argument(s): '];
+    for (final prefix in prefixes) {
+      if (message.startsWith(prefix)) {
+        return message.substring(prefix.length);
+      }
     }
     return message;
   }
@@ -189,6 +201,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
   Future<void> _showCreateAccountDialog() async {
     final nameController = TextEditingController();
     final passwordController = TextEditingController();
+    final confirmController = TextEditingController();
 
     final payload = await showDialog<_CreateAccountPayload>(
       context: context,
@@ -206,7 +219,13 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
               const SizedBox(height: 8),
               TextField(
                 controller: passwordController,
-                decoration: const InputDecoration(labelText: '本人確認パスワード'),
+                decoration: const InputDecoration(labelText: 'アカウントパスワード'),
+                obscureText: true,
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: confirmController,
+                decoration: const InputDecoration(labelText: 'アカウントパスワード（確認）'),
                 obscureText: true,
               ),
             ],
@@ -223,6 +242,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                 _CreateAccountPayload(
                   name: nameController.text,
                   password: passwordController.text,
+                  confirmPassword: confirmController.text,
                 ),
               );
             },
@@ -233,10 +253,18 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     );
 
     if (payload == null) return;
+    if (payload.password != payload.confirmPassword) {
+      _snack('確認用パスワードが一致しません');
+      return;
+    }
+    if (payload.password.trim().length < 8) {
+      _snack('アカウントパスワードは8文字以上で入力してください');
+      return;
+    }
     await _run(() async {
       await widget.repository.createAccount(
         payload.name,
-        currentPassword: payload.password,
+        accountPassword: payload.password,
       );
     });
   }
@@ -249,7 +277,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
         title: const Text('パスワード確認'),
         content: TextField(
           controller: passwordController,
-          decoration: const InputDecoration(labelText: '本人確認パスワード'),
+          decoration: const InputDecoration(labelText: 'アカウントパスワード'),
           obscureText: true,
         ),
         actions: [
@@ -261,6 +289,61 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
             onPressed: () =>
                 Navigator.of(dialogContext).pop(passwordController.text),
             child: const Text('切り替え'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<_SetAccountPasswordPayload?> _showSetAccountPasswordDialog() async {
+    final passwordController = TextEditingController();
+    final confirmController = TextEditingController();
+    return showDialog<_SetAccountPasswordPayload>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('アカウントパスワード初回設定'),
+        content: SizedBox(
+          width: 360,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'このアカウントはパスワード未設定です。切り替え前に設定してください。',
+                  style: TextStyle(fontSize: 12, color: Colors.black54),
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: passwordController,
+                decoration: const InputDecoration(labelText: 'アカウントパスワード'),
+                obscureText: true,
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: confirmController,
+                decoration: const InputDecoration(labelText: 'アカウントパスワード（確認）'),
+                obscureText: true,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('キャンセル'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop(
+                _SetAccountPasswordPayload(
+                  password: passwordController.text,
+                  confirmPassword: confirmController.text,
+                ),
+              );
+            },
+            child: const Text('設定して切り替え'),
           ),
         ],
       ),
@@ -311,15 +394,59 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
       return;
     }
 
+    final selectedAccount = accounts.cast<Account?>().firstWhere(
+          (a) => a?.id == accountId,
+          orElse: () => null,
+        );
+
     final password = await _showAccountSwitchPasswordDialog();
     if (password == null) return;
+    if (password.trim().isEmpty) {
+      _snack('アカウントパスワードを入力してください');
+      return;
+    }
 
-    await _run(
-      () => widget.repository.setActiveAccount(
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await widget.repository.setActiveAccount(
         accountId,
-        currentPassword: password,
-      ),
-    );
+        accountPassword: password,
+      );
+      widget.onScopeChanged();
+      if (mounted) setState(() {});
+    } catch (e) {
+      final message = _extractMessage(e);
+      if (message.contains('アカウントパスワード未設定')) {
+        final setup = await _showSetAccountPasswordDialog();
+        if (setup == null) return;
+        if (setup.password != setup.confirmPassword) {
+          _snack('確認用パスワードが一致しません');
+          return;
+        }
+        if (setup.password.trim().length < 8) {
+          _snack('アカウントパスワードは8文字以上で入力してください');
+          return;
+        }
+
+        await widget.repository.setAccountPasswordIfUnset(
+          accountId,
+          newPassword: setup.password,
+        );
+        await widget.repository.setActiveAccount(
+          accountId,
+          accountPassword: setup.password,
+        );
+        widget.onScopeChanged();
+        if (mounted) setState(() {});
+        _snack(
+            'アカウント「${selectedAccount?.name ?? accountId}」のパスワードを設定して切り替えました');
+      } else {
+        _snack(_friendlyErrorMessage(e));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   Future<void> _showCreateGroupDialog() async {
@@ -758,9 +885,23 @@ class _ChangePasswordPayload {
 }
 
 class _CreateAccountPayload {
-  const _CreateAccountPayload({required this.name, required this.password});
+  const _CreateAccountPayload({
+    required this.name,
+    required this.password,
+    required this.confirmPassword,
+  });
   final String name;
   final String password;
+  final String confirmPassword;
+}
+
+class _SetAccountPasswordPayload {
+  const _SetAccountPasswordPayload({
+    required this.password,
+    required this.confirmPassword,
+  });
+  final String password;
+  final String confirmPassword;
 }
 
 class _CreateGroupPayload {
