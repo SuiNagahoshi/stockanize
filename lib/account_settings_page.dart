@@ -206,7 +206,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
               const SizedBox(height: 8),
               TextField(
                 controller: passwordController,
-                decoration: const InputDecoration(labelText: 'パスワード'),
+                decoration: const InputDecoration(labelText: '本人確認パスワード'),
                 obscureText: true,
               ),
             ],
@@ -249,7 +249,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
         title: const Text('パスワード確認'),
         content: TextField(
           controller: passwordController,
-          decoration: const InputDecoration(labelText: 'パスワード'),
+          decoration: const InputDecoration(labelText: '本人確認パスワード'),
           obscureText: true,
         ),
         actions: [

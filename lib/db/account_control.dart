@@ -115,7 +115,10 @@ extension AccountControlDao on AppDatabase {
     required String accountId,
     required String currentPassword,
   }) async {
-    final user = await _requireCurrentUserAndVerifyPassword(currentPassword);
+    final user = await _requireCurrentUserAndVerifyPassword(
+      currentPassword,
+      actionLabel: 'アカウント切り替え',
+    );
     await setActiveAccount(accountId, userId: user.id);
   }
 
@@ -203,7 +206,10 @@ extension AccountControlDao on AppDatabase {
       throw ArgumentError('アカウント名は必須です');
     }
 
-    final user = await _requireCurrentUserAndVerifyPassword(currentPassword);
+    final user = await _requireCurrentUserAndVerifyPassword(
+      currentPassword,
+      actionLabel: 'アカウント作成',
+    );
 
     final id = 'acc-${DateTime.now().millisecondsSinceEpoch}';
     await into(accounts).insert(
@@ -575,7 +581,10 @@ extension AccountControlDao on AppDatabase {
     return user;
   }
 
-  Future<User> _requireCurrentUserAndVerifyPassword(String password) async {
+  Future<User> _requireCurrentUserAndVerifyPassword(
+    String password, {
+    required String actionLabel,
+  }) async {
     final user = await _requireCurrentUser();
     final verified = _verifyPasswordWithTolerance(
       password: password,
@@ -583,7 +592,9 @@ extension AccountControlDao on AppDatabase {
       expectedHash: user.passwordHash,
     );
     if (!verified) {
-      throw StateError('パスワードが正しくありません');
+      throw StateError(
+        '$actionLabelに必要なパスワードが一致しません。ログイン時と同じパスワードを入力してください。',
+      );
     }
     return user;
   }
