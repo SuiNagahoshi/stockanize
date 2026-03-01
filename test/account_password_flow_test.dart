@@ -83,5 +83,42 @@ void main() {
       );
       expect(db.currentAccountId, legacyPersonal.id);
     });
+
+    test('login recovers orphan accounts into account_members', () async {
+      const orphanId = 'acc-orphan-1';
+      await db.into(db.accounts).insert(
+            AccountsCompanion.insert(
+              id: orphanId,
+              name: 'orphan-account',
+            ),
+          );
+
+      await db.logout();
+      await db.login(username: 'alice', password: 'alice-pass-123');
+
+      final accounts = await db.getAccounts();
+      expect(accounts.any((a) => a.id == orphanId), isTrue);
+
+      final membership = await (db.select(db.accountMembers)
+            ..where((m) => m.accountId.equals(orphanId))
+            ..where((m) => m.userId.equals(db.currentUserId!)))
+          .getSingleOrNull();
+      expect(membership, isNotNull);
+      expect(membership!.role, 'owner');
+    });
+
+    test('createAccount rejects duplicate account name with clear error',
+        () async {
+      await db.createAccount('dup-name', accountPassword: 'dup-pass-123');
+
+      expect(
+        () => db.createAccount('dup-name', accountPassword: 'another-pass-123'),
+        throwsA(
+          predicate(
+            (e) => e.toString().contains('同名のアカウントが既に存在します'),
+          ),
+        ),
+      );
+    });
   });
 }
