@@ -19,6 +19,9 @@ class Users extends Table {
 class Accounts extends Table {
   TextColumn get id => text()();
   TextColumn get name => text().unique()();
+  TextColumn get passwordHash => text().nullable()();
+  TextColumn get passwordSalt => text().nullable()();
+  DateTimeColumn get passwordSetAt => dateTime().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 
   @override

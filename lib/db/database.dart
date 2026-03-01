@@ -21,6 +21,7 @@ part 'database.g.dart';
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase._internal() : super(_openConnection());
+  AppDatabase.forTesting(super.executor);
   static final AppDatabase instance = AppDatabase._internal();
   factory AppDatabase() => instance;
 
@@ -36,7 +37,7 @@ class AppDatabase extends _$AppDatabase {
   int? get currentUserId => _activeUserId;
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -86,6 +87,20 @@ class AppDatabase extends _$AppDatabase {
                 await _tableExists('app_contexts') &&
                 !await _columnExists('app_contexts', 'active_user_id')) {
               await m.addColumn(appContexts, appContexts.activeUserId);
+            }
+          }
+
+          if (from < 5) {
+            if (await _tableExists('accounts')) {
+              if (!await _columnExists('accounts', 'password_hash')) {
+                await m.addColumn(accounts, accounts.passwordHash);
+              }
+              if (!await _columnExists('accounts', 'password_salt')) {
+                await m.addColumn(accounts, accounts.passwordSalt);
+              }
+              if (!await _columnExists('accounts', 'password_set_at')) {
+                await m.addColumn(accounts, accounts.passwordSetAt);
+              }
             }
           }
         },

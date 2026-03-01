@@ -328,6 +328,24 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
       type: DriftSqlType.string,
       requiredDuringInsert: true,
       defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'));
+  static const VerificationMeta _passwordHashMeta =
+      const VerificationMeta('passwordHash');
+  @override
+  late final GeneratedColumn<String> passwordHash = GeneratedColumn<String>(
+      'password_hash', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _passwordSaltMeta =
+      const VerificationMeta('passwordSalt');
+  @override
+  late final GeneratedColumn<String> passwordSalt = GeneratedColumn<String>(
+      'password_salt', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _passwordSetAtMeta =
+      const VerificationMeta('passwordSetAt');
+  @override
+  late final GeneratedColumn<DateTime> passwordSetAt =
+      GeneratedColumn<DateTime>('password_set_at', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -337,7 +355,8 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
       requiredDuringInsert: false,
       defaultValue: currentDateAndTime);
   @override
-  List<GeneratedColumn> get $columns => [id, name, createdAt];
+  List<GeneratedColumn> get $columns =>
+      [id, name, passwordHash, passwordSalt, passwordSetAt, createdAt];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -359,6 +378,24 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
     } else if (isInserting) {
       context.missing(_nameMeta);
     }
+    if (data.containsKey('password_hash')) {
+      context.handle(
+          _passwordHashMeta,
+          passwordHash.isAcceptableOrUnknown(
+              data['password_hash']!, _passwordHashMeta));
+    }
+    if (data.containsKey('password_salt')) {
+      context.handle(
+          _passwordSaltMeta,
+          passwordSalt.isAcceptableOrUnknown(
+              data['password_salt']!, _passwordSaltMeta));
+    }
+    if (data.containsKey('password_set_at')) {
+      context.handle(
+          _passwordSetAtMeta,
+          passwordSetAt.isAcceptableOrUnknown(
+              data['password_set_at']!, _passwordSetAtMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -376,6 +413,12 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
           .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
       name: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      passwordHash: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}password_hash']),
+      passwordSalt: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}password_salt']),
+      passwordSetAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}password_set_at']),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
     );
@@ -390,14 +433,31 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
 class Account extends DataClass implements Insertable<Account> {
   final String id;
   final String name;
+  final String? passwordHash;
+  final String? passwordSalt;
+  final DateTime? passwordSetAt;
   final DateTime createdAt;
   const Account(
-      {required this.id, required this.name, required this.createdAt});
+      {required this.id,
+      required this.name,
+      this.passwordHash,
+      this.passwordSalt,
+      this.passwordSetAt,
+      required this.createdAt});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
     map['name'] = Variable<String>(name);
+    if (!nullToAbsent || passwordHash != null) {
+      map['password_hash'] = Variable<String>(passwordHash);
+    }
+    if (!nullToAbsent || passwordSalt != null) {
+      map['password_salt'] = Variable<String>(passwordSalt);
+    }
+    if (!nullToAbsent || passwordSetAt != null) {
+      map['password_set_at'] = Variable<DateTime>(passwordSetAt);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
   }
@@ -406,6 +466,15 @@ class Account extends DataClass implements Insertable<Account> {
     return AccountsCompanion(
       id: Value(id),
       name: Value(name),
+      passwordHash: passwordHash == null && nullToAbsent
+          ? const Value.absent()
+          : Value(passwordHash),
+      passwordSalt: passwordSalt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(passwordSalt),
+      passwordSetAt: passwordSetAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(passwordSetAt),
       createdAt: Value(createdAt),
     );
   }
@@ -416,6 +485,9 @@ class Account extends DataClass implements Insertable<Account> {
     return Account(
       id: serializer.fromJson<String>(json['id']),
       name: serializer.fromJson<String>(json['name']),
+      passwordHash: serializer.fromJson<String?>(json['passwordHash']),
+      passwordSalt: serializer.fromJson<String?>(json['passwordSalt']),
+      passwordSetAt: serializer.fromJson<DateTime?>(json['passwordSetAt']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
@@ -425,19 +497,44 @@ class Account extends DataClass implements Insertable<Account> {
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
       'name': serializer.toJson<String>(name),
+      'passwordHash': serializer.toJson<String?>(passwordHash),
+      'passwordSalt': serializer.toJson<String?>(passwordSalt),
+      'passwordSetAt': serializer.toJson<DateTime?>(passwordSetAt),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
 
-  Account copyWith({String? id, String? name, DateTime? createdAt}) => Account(
+  Account copyWith(
+          {String? id,
+          String? name,
+          Value<String?> passwordHash = const Value.absent(),
+          Value<String?> passwordSalt = const Value.absent(),
+          Value<DateTime?> passwordSetAt = const Value.absent(),
+          DateTime? createdAt}) =>
+      Account(
         id: id ?? this.id,
         name: name ?? this.name,
+        passwordHash:
+            passwordHash.present ? passwordHash.value : this.passwordHash,
+        passwordSalt:
+            passwordSalt.present ? passwordSalt.value : this.passwordSalt,
+        passwordSetAt:
+            passwordSetAt.present ? passwordSetAt.value : this.passwordSetAt,
         createdAt: createdAt ?? this.createdAt,
       );
   Account copyWithCompanion(AccountsCompanion data) {
     return Account(
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
+      passwordHash: data.passwordHash.present
+          ? data.passwordHash.value
+          : this.passwordHash,
+      passwordSalt: data.passwordSalt.present
+          ? data.passwordSalt.value
+          : this.passwordSalt,
+      passwordSetAt: data.passwordSetAt.present
+          ? data.passwordSetAt.value
+          : this.passwordSetAt,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -447,36 +544,52 @@ class Account extends DataClass implements Insertable<Account> {
     return (StringBuffer('Account(')
           ..write('id: $id, ')
           ..write('name: $name, ')
+          ..write('passwordHash: $passwordHash, ')
+          ..write('passwordSalt: $passwordSalt, ')
+          ..write('passwordSetAt: $passwordSetAt, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, name, createdAt);
+  int get hashCode => Object.hash(
+      id, name, passwordHash, passwordSalt, passwordSetAt, createdAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is Account &&
           other.id == this.id &&
           other.name == this.name &&
+          other.passwordHash == this.passwordHash &&
+          other.passwordSalt == this.passwordSalt &&
+          other.passwordSetAt == this.passwordSetAt &&
           other.createdAt == this.createdAt);
 }
 
 class AccountsCompanion extends UpdateCompanion<Account> {
   final Value<String> id;
   final Value<String> name;
+  final Value<String?> passwordHash;
+  final Value<String?> passwordSalt;
+  final Value<DateTime?> passwordSetAt;
   final Value<DateTime> createdAt;
   final Value<int> rowid;
   const AccountsCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
+    this.passwordHash = const Value.absent(),
+    this.passwordSalt = const Value.absent(),
+    this.passwordSetAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   AccountsCompanion.insert({
     required String id,
     required String name,
+    this.passwordHash = const Value.absent(),
+    this.passwordSalt = const Value.absent(),
+    this.passwordSetAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
@@ -484,12 +597,18 @@ class AccountsCompanion extends UpdateCompanion<Account> {
   static Insertable<Account> custom({
     Expression<String>? id,
     Expression<String>? name,
+    Expression<String>? passwordHash,
+    Expression<String>? passwordSalt,
+    Expression<DateTime>? passwordSetAt,
     Expression<DateTime>? createdAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (name != null) 'name': name,
+      if (passwordHash != null) 'password_hash': passwordHash,
+      if (passwordSalt != null) 'password_salt': passwordSalt,
+      if (passwordSetAt != null) 'password_set_at': passwordSetAt,
       if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -498,11 +617,17 @@ class AccountsCompanion extends UpdateCompanion<Account> {
   AccountsCompanion copyWith(
       {Value<String>? id,
       Value<String>? name,
+      Value<String?>? passwordHash,
+      Value<String?>? passwordSalt,
+      Value<DateTime?>? passwordSetAt,
       Value<DateTime>? createdAt,
       Value<int>? rowid}) {
     return AccountsCompanion(
       id: id ?? this.id,
       name: name ?? this.name,
+      passwordHash: passwordHash ?? this.passwordHash,
+      passwordSalt: passwordSalt ?? this.passwordSalt,
+      passwordSetAt: passwordSetAt ?? this.passwordSetAt,
       createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
     );
@@ -516,6 +641,15 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     }
     if (name.present) {
       map['name'] = Variable<String>(name.value);
+    }
+    if (passwordHash.present) {
+      map['password_hash'] = Variable<String>(passwordHash.value);
+    }
+    if (passwordSalt.present) {
+      map['password_salt'] = Variable<String>(passwordSalt.value);
+    }
+    if (passwordSetAt.present) {
+      map['password_set_at'] = Variable<DateTime>(passwordSetAt.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
@@ -531,6 +665,9 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     return (StringBuffer('AccountsCompanion(')
           ..write('id: $id, ')
           ..write('name: $name, ')
+          ..write('passwordHash: $passwordHash, ')
+          ..write('passwordSalt: $passwordSalt, ')
+          ..write('passwordSetAt: $passwordSetAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -3596,12 +3733,18 @@ typedef $$UsersTableProcessedTableManager = ProcessedTableManager<
 typedef $$AccountsTableCreateCompanionBuilder = AccountsCompanion Function({
   required String id,
   required String name,
+  Value<String?> passwordHash,
+  Value<String?> passwordSalt,
+  Value<DateTime?> passwordSetAt,
   Value<DateTime> createdAt,
   Value<int> rowid,
 });
 typedef $$AccountsTableUpdateCompanionBuilder = AccountsCompanion Function({
   Value<String> id,
   Value<String> name,
+  Value<String?> passwordHash,
+  Value<String?> passwordSalt,
+  Value<DateTime?> passwordSetAt,
   Value<DateTime> createdAt,
   Value<int> rowid,
 });
@@ -3685,6 +3828,15 @@ class $$AccountsTableFilterComposer
 
   ColumnFilters<String> get name => $composableBuilder(
       column: $table.name, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get passwordHash => $composableBuilder(
+      column: $table.passwordHash, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get passwordSalt => $composableBuilder(
+      column: $table.passwordSalt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get passwordSetAt => $composableBuilder(
+      column: $table.passwordSetAt, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -3789,6 +3941,18 @@ class $$AccountsTableOrderingComposer
   ColumnOrderings<String> get name => $composableBuilder(
       column: $table.name, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get passwordHash => $composableBuilder(
+      column: $table.passwordHash,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get passwordSalt => $composableBuilder(
+      column: $table.passwordSalt,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get passwordSetAt => $composableBuilder(
+      column: $table.passwordSetAt,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 }
@@ -3807,6 +3971,15 @@ class $$AccountsTableAnnotationComposer
 
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get passwordHash => $composableBuilder(
+      column: $table.passwordHash, builder: (column) => column);
+
+  GeneratedColumn<String> get passwordSalt => $composableBuilder(
+      column: $table.passwordSalt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get passwordSetAt => $composableBuilder(
+      column: $table.passwordSetAt, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -3925,24 +4098,36 @@ class $$AccountsTableTableManager extends RootTableManager<
           updateCompanionCallback: ({
             Value<String> id = const Value.absent(),
             Value<String> name = const Value.absent(),
+            Value<String?> passwordHash = const Value.absent(),
+            Value<String?> passwordSalt = const Value.absent(),
+            Value<DateTime?> passwordSetAt = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               AccountsCompanion(
             id: id,
             name: name,
+            passwordHash: passwordHash,
+            passwordSalt: passwordSalt,
+            passwordSetAt: passwordSetAt,
             createdAt: createdAt,
             rowid: rowid,
           ),
           createCompanionCallback: ({
             required String id,
             required String name,
+            Value<String?> passwordHash = const Value.absent(),
+            Value<String?> passwordSalt = const Value.absent(),
+            Value<DateTime?> passwordSetAt = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               AccountsCompanion.insert(
             id: id,
             name: name,
+            passwordHash: passwordHash,
+            passwordSalt: passwordSalt,
+            passwordSetAt: passwordSetAt,
             createdAt: createdAt,
             rowid: rowid,
           ),
