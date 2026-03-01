@@ -55,10 +55,39 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
       if (mounted) setState(() {});
       if (okMessage != null) _snack(okMessage);
     } catch (e) {
-      _snack('失敗: $e');
+      _snack(_friendlyErrorMessage(e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  String _friendlyErrorMessage(Object error) {
+    var message = error.toString();
+    const prefixes = <String>['Bad state: ', 'Invalid argument(s): '];
+    for (final prefix in prefixes) {
+      if (message.startsWith(prefix)) {
+        message = message.substring(prefix.length);
+        break;
+      }
+    }
+
+    if (message.contains('パスワードが正しくありません') ||
+        message.contains('現在のパスワードが正しくありません')) {
+      return 'パスワードが一致しません。入力したパスワードを確認してください。';
+    }
+    if (message.contains('ユーザが見つかりません')) {
+      return 'ユーザ名が見つかりません。入力したユーザ名を確認してください。';
+    }
+    if (message.contains('ログインが必要です')) {
+      return 'この操作にはログインが必要です。ログイン後にもう一度お試しください。';
+    }
+    if (message.contains('対象アカウントに所属していません')) {
+      return '選択したアカウントに参加していないため切り替えできません。';
+    }
+    if (message.contains('対象グループに参加していません')) {
+      return '対象グループに参加していないため、この操作は実行できません。';
+    }
+    return message;
   }
 
   Future<void> _login() async {
@@ -159,9 +188,8 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
 
   Future<void> _showCreateAccountDialog() async {
     final nameController = TextEditingController();
-    final passwordController = TextEditingController();
 
-    final payload = await showDialog<_CreateAccountPayload>(
+    final accountName = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('アカウント作成'),
@@ -174,12 +202,6 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                 controller: nameController,
                 decoration: const InputDecoration(labelText: 'アカウント名'),
               ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: passwordController,
-                decoration: const InputDecoration(labelText: 'パスワード確認'),
-                obscureText: true,
-              ),
             ],
           ),
         ),
@@ -190,12 +212,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
           ),
           FilledButton(
             onPressed: () {
-              Navigator.of(dialogContext).pop(
-                _CreateAccountPayload(
-                  name: nameController.text,
-                  password: passwordController.text,
-                ),
-              );
+              Navigator.of(dialogContext).pop(nameController.text);
             },
             child: const Text('作成'),
           ),
@@ -203,12 +220,9 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
       ),
     );
 
-    if (payload == null) return;
+    if (accountName == null) return;
     await _run(() async {
-      await widget.repository.createAccount(
-        payload.name,
-        currentPassword: payload.password,
-      );
+      await widget.repository.createAccount(accountName);
     });
   }
 
@@ -220,7 +234,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
         title: const Text('パスワード確認'),
         content: TextField(
           controller: passwordController,
-          decoration: const InputDecoration(labelText: '現在のパスワード'),
+          decoration: const InputDecoration(labelText: 'パスワード'),
           obscureText: true,
         ),
         actions: [
@@ -726,12 +740,6 @@ class _ChangePasswordPayload {
   });
   final String currentPassword;
   final String newPassword;
-}
-
-class _CreateAccountPayload {
-  const _CreateAccountPayload({required this.name, required this.password});
-  final String name;
-  final String password;
 }
 
 class _CreateGroupPayload {

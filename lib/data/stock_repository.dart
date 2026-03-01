@@ -17,7 +17,7 @@ abstract class StockRepository {
   Future<User?> getCurrentUser();
 
   Stream<List<Account>> watchAccounts();
-  Future<String> createAccount(String name, {required String currentPassword});
+  Future<String> createAccount(String name);
   Future<void> renameAccount(String accountId, String newName);
   Future<void> deleteAccount(String accountId);
 

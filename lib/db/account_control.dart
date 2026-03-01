@@ -89,7 +89,7 @@ extension AccountControlDao on AppDatabase {
       throw StateError('ユーザが見つかりません');
     }
 
-    final isValid = PasswordHasher.verify(
+    final isValid = _verifyPasswordWithTolerance(
       password: password,
       salt: user.passwordSalt,
       expectedHash: user.passwordHash,
@@ -131,7 +131,7 @@ extension AccountControlDao on AppDatabase {
     final currentUser =
         await (select(users)..where((u) => u.id.equals(userId))).getSingle();
 
-    final currentValid = PasswordHasher.verify(
+    final currentValid = _verifyPasswordWithTolerance(
       password: currentPassword,
       salt: currentUser.passwordSalt,
       expectedHash: currentUser.passwordHash,
@@ -195,15 +195,14 @@ extension AccountControlDao on AppDatabase {
   }
 
   Future<String> createAccount(
-    String name, {
-    required String currentPassword,
-  }) async {
+    String name,
+  ) async {
     final normalized = name.trim();
     if (normalized.isEmpty) {
       throw ArgumentError('アカウント名は必須です');
     }
 
-    final user = await _requireCurrentUserAndVerifyPassword(currentPassword);
+    final user = await _requireCurrentUser();
 
     final id = 'acc-${DateTime.now().millisecondsSinceEpoch}';
     await into(accounts).insert(
@@ -577,7 +576,7 @@ extension AccountControlDao on AppDatabase {
 
   Future<User> _requireCurrentUserAndVerifyPassword(String password) async {
     final user = await _requireCurrentUser();
-    final verified = PasswordHasher.verify(
+    final verified = _verifyPasswordWithTolerance(
       password: password,
       salt: user.passwordSalt,
       expectedHash: user.passwordHash,
@@ -586,6 +585,28 @@ extension AccountControlDao on AppDatabase {
       throw StateError('パスワードが正しくありません');
     }
     return user;
+  }
+
+  bool _verifyPasswordWithTolerance({
+    required String password,
+    required String salt,
+    required String expectedHash,
+  }) {
+    final rawMatched = PasswordHasher.verify(
+      password: password,
+      salt: salt,
+      expectedHash: expectedHash,
+    );
+    if (rawMatched) return true;
+
+    final trimmed = password.trim();
+    if (trimmed == password) return false;
+
+    return PasswordHasher.verify(
+      password: trimmed,
+      salt: salt,
+      expectedHash: expectedHash,
+    );
   }
 
   Future<void> _ensureAccountMember(String accountId) async {
