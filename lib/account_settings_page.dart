@@ -69,6 +69,9 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     if (message.contains('アカウントパスワード未設定')) {
       return 'このアカウントはまだパスワード未設定です。初回設定を行ってください。';
     }
+    if (message.contains('同名のアカウントが既に存在します')) {
+      return 'このアカウント名は既に使われています。別の名前を入力してください。';
+    }
     if (message.contains('アカウントパスワードは既に設定されています')) {
       return 'このアカウントのパスワードは既に設定済みです。設定済みのパスワードで切り替えてください。';
     }

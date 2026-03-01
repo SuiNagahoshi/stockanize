@@ -100,6 +100,7 @@ extension AccountControlDao on AppDatabase {
     }
 
     final personalAccountId = await _ensurePersonalAccount(user);
+    await _recoverOrphanAccountsForUser(user.id);
     await setActiveScope(
       accountId: personalAccountId,
       groupId: null,
@@ -222,21 +223,32 @@ extension AccountControlDao on AppDatabase {
     if (normalized.isEmpty) {
       throw ArgumentError('アカウント名は必須です');
     }
+    final duplicate = await _isDuplicateAccountName(normalized);
+    if (duplicate) {
+      throw StateError('同名のアカウントが既に存在します');
+    }
     _validatePassword(accountPassword);
     final user = await _requireCurrentUser();
     final salt = PasswordHasher.createSalt();
     final passwordHash = PasswordHasher.hash(accountPassword, salt);
 
     final id = 'acc-${DateTime.now().millisecondsSinceEpoch}';
-    await into(accounts).insert(
-      AccountsCompanion.insert(
-        id: id,
-        name: normalized,
-        passwordHash: Value(passwordHash),
-        passwordSalt: Value(salt),
-        passwordSetAt: Value(DateTime.now()),
-      ),
-    );
+    try {
+      await into(accounts).insert(
+        AccountsCompanion.insert(
+          id: id,
+          name: normalized,
+          passwordHash: Value(passwordHash),
+          passwordSalt: Value(salt),
+          passwordSetAt: Value(DateTime.now()),
+        ),
+      );
+    } catch (e) {
+      if (_isDuplicateAccountNameException(e)) {
+        throw StateError('同名のアカウントが既に存在します');
+      }
+      rethrow;
+    }
 
     await into(accountMembers).insert(
       AccountMembersCompanion.insert(
@@ -666,6 +678,45 @@ extension AccountControlDao on AppDatabase {
     if (membership == null) {
       throw StateError('対象アカウントに所属していません');
     }
+  }
+
+  Future<void> _recoverOrphanAccountsForUser(int userId) async {
+    final rows = await customSelect(
+      '''
+      SELECT a.id AS account_id
+      FROM accounts a
+      LEFT JOIN account_members am ON am.account_id = a.id
+      WHERE am.id IS NULL
+      ''',
+    ).get();
+    if (rows.isEmpty) return;
+
+    await transaction(() async {
+      for (final row in rows) {
+        final accountId = row.read<String>('account_id');
+        await into(accountMembers).insert(
+          AccountMembersCompanion.insert(
+            accountId: accountId,
+            userId: userId,
+            role: const Value('owner'),
+          ),
+          mode: InsertMode.insertOrIgnore,
+        );
+      }
+    });
+  }
+
+  Future<bool> _isDuplicateAccountName(String name) async {
+    final existing = await (select(accounts)..where((a) => a.name.equals(name)))
+        .getSingleOrNull();
+    return existing != null;
+  }
+
+  bool _isDuplicateAccountNameException(Object error) {
+    final message = error.toString();
+    return message.contains('UNIQUE constraint failed: accounts.name') ||
+        message.contains('UNIQUE constraint failed') &&
+            message.contains('accounts.name');
   }
 
   Future<void> _ensureGroupMember(int groupId) async {
