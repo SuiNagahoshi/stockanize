@@ -654,6 +654,9 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
 
   Widget _buildLoggedIn(
       User user, List<Account> accounts, List<UserGroup> groups) {
+    final activeAccount = accounts.cast<Account?>().firstWhere(
+        (a) => a?.id == widget.db.currentAccountId,
+        orElse: () => null);
     final activeGroup = groups.cast<UserGroup?>().firstWhere(
         (g) => g?.id == widget.db.currentGroupId,
         orElse: () => null);
@@ -667,7 +670,10 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(user.username, style: const TextStyle(fontSize: 20)),
+                Text(
+                  activeAccount?.name ?? user.username,
+                  style: const TextStyle(fontSize: 20),
+                ),
                 const SizedBox(height: 6),
                 Text('グループ: ${activeGroup?.name ?? '未選択'}'),
                 const SizedBox(height: 12),
