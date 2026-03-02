@@ -68,9 +68,9 @@ extension AccountControlDao on AppDatabase {
 
     final createdUser =
         await (select(users)..where((u) => u.id.equals(userId))).getSingle();
-    final personalAccountId = await _ensurePersonalAccount(createdUser);
+    final initialAccountId = await _createInitialAccountForUser(createdUser);
     await setActiveScope(
-      accountId: personalAccountId,
+      accountId: initialAccountId,
       groupId: null,
       userId: createdUser.id,
     );
@@ -100,11 +100,16 @@ extension AccountControlDao on AppDatabase {
       throw StateError('パスワードが正しくありません');
     }
 
-    final personalAccountId = await _ensurePersonalAccount(user);
     await _recoverOrphanAccountsForUser(user.id);
+    final accountId = await _resolveLoginAccountForUser(user);
+    final groupId = await _resolveGroupForLogin(
+      accountId: accountId,
+      userId: user.id,
+      previousGroupId: currentGroupId,
+    );
     await setActiveScope(
-      accountId: personalAccountId,
-      groupId: null,
+      accountId: accountId,
+      groupId: groupId,
       userId: user.id,
     );
   }
@@ -494,6 +499,12 @@ extension AccountControlDao on AppDatabase {
 
     final normalized = inviteeUsername.trim().toLowerCase();
     _validateUsername(normalized);
+    final invitee = await (select(users)
+          ..where((u) => u.username.equals(normalized)))
+        .getSingleOrNull();
+    if (invitee == null) {
+      throw StateError('招待対象ユーザが存在しません');
+    }
 
     final token = _generateInviteToken();
     final expiresAt = DateTime.now().add(const Duration(days: 7));
@@ -816,26 +827,6 @@ extension AccountControlDao on AppDatabase {
     return value.map((e) => e.toRadixString(16).padLeft(2, '0')).join();
   }
 
-  Future<String> _ensurePersonalAccount(User user) async {
-    final accountId = 'acc-user-${user.id}';
-    final accountName = user.username;
-
-    await into(accounts).insertOnConflictUpdate(
-      AccountsCompanion.insert(
-        id: accountId,
-        name: accountName,
-      ),
-    );
-
-    await _ensureAccountMemberRow(
-      accountId: accountId,
-      userId: user.id,
-      role: 'owner',
-    );
-
-    return accountId;
-  }
-
   Future<String> _ensureUsableAccountForUser(User user) async {
     final currentMembership = await (select(accountMembers)
           ..where((m) => m.accountId.equals(currentAccountId))
@@ -853,7 +844,88 @@ extension AccountControlDao on AppDatabase {
       return memberships.first.accountId;
     }
 
-    return _ensurePersonalAccount(user);
+    return _createInitialAccountForUser(user);
+  }
+
+  Future<String> _resolveLoginAccountForUser(User user) async {
+    final activeMembership = await (select(accountMembers)
+          ..where((m) => m.accountId.equals(currentAccountId))
+          ..where((m) => m.userId.equals(user.id)))
+        .getSingleOrNull();
+    if (activeMembership != null) {
+      return currentAccountId;
+    }
+
+    final memberships = await (select(accountMembers)
+          ..where((m) => m.userId.equals(user.id))
+          ..orderBy([(m) => OrderingTerm.asc(m.createdAt)]))
+        .get();
+    if (memberships.isNotEmpty) {
+      return memberships.first.accountId;
+    }
+
+    return _createInitialAccountForUser(user);
+  }
+
+  Future<int?> _resolveGroupForLogin({
+    required String accountId,
+    required int userId,
+    required int? previousGroupId,
+  }) async {
+    if (previousGroupId != null) {
+      final previous = await (select(userGroups).join([
+        innerJoin(groupMembers, groupMembers.groupId.equalsExp(userGroups.id)),
+      ])
+            ..where(userGroups.id.equals(previousGroupId))
+            ..where(userGroups.accountId.equals(accountId))
+            ..where(groupMembers.userId.equals(userId)))
+          .getSingleOrNull();
+      if (previous != null) {
+        return previousGroupId;
+      }
+    }
+
+    final groups = await (select(userGroups).join([
+      innerJoin(groupMembers, groupMembers.groupId.equalsExp(userGroups.id)),
+    ])
+          ..where(userGroups.accountId.equals(accountId))
+          ..where(groupMembers.userId.equals(userId))
+          ..orderBy([OrderingTerm.asc(userGroups.createdAt)]))
+        .get();
+    if (groups.isEmpty) {
+      return null;
+    }
+    return groups.first.readTable(userGroups).id;
+  }
+
+  Future<String> _createInitialAccountForUser(User user) async {
+    final accountId = 'acc-${DateTime.now().millisecondsSinceEpoch}-${user.id}';
+    final accountName = await _allocateUniqueAccountName(user.username);
+
+    await into(accounts).insert(
+      AccountsCompanion.insert(
+        id: accountId,
+        name: accountName,
+      ),
+    );
+
+    await _ensureAccountMemberRow(
+      accountId: accountId,
+      userId: user.id,
+      role: 'owner',
+    );
+
+    return accountId;
+  }
+
+  Future<String> _allocateUniqueAccountName(String baseName) async {
+    var candidate = baseName;
+    var suffix = 1;
+    while (await _isDuplicateAccountName(candidate)) {
+      candidate = '$baseName-$suffix';
+      suffix++;
+    }
+    return candidate;
   }
 
   Future<void> _ensureAccountMemberRow({

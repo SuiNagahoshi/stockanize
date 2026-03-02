@@ -57,31 +57,31 @@ void main() {
       expect(db.currentAccountId, accountB);
     });
 
-    test('legacy account requires password setup before switching', () async {
+    test('account without password requires password setup before switching',
+        () async {
       await db.createAccount('team-main', accountPassword: 'team-main-pass');
 
       final accounts = await db.getAccounts();
-      final legacyPersonal =
-          accounts.firstWhere((a) => a.id.startsWith('acc-user-'));
+      final passwordUnset = accounts.firstWhere((a) => a.passwordHash == null);
 
       expect(
         () => db.switchActiveAccount(
-          accountId: legacyPersonal.id,
+          accountId: passwordUnset.id,
           accountPassword: 'anything',
         ),
         throwsA(predicate((e) => e.toString().contains('アカウントパスワード未設定'))),
       );
 
       await db.setAccountPasswordIfUnset(
-        accountId: legacyPersonal.id,
+        accountId: passwordUnset.id,
         newPassword: 'personal-pass-123',
       );
 
       await db.switchActiveAccount(
-        accountId: legacyPersonal.id,
+        accountId: passwordUnset.id,
         accountPassword: 'personal-pass-123',
       );
-      expect(db.currentAccountId, legacyPersonal.id);
+      expect(db.currentAccountId, passwordUnset.id);
     });
 
     test('login recovers orphan accounts into account_members', () async {
@@ -275,6 +275,47 @@ void main() {
       await db.login(username: 'bob', password: 'bob-pass-123');
       final pendingForBob = await db.watchPendingInvitesForCurrentUser().first;
       expect(pendingForBob.any((i) => i.groupId == bobGroup), isFalse);
+    });
+
+    test('login keeps active account when user is a member', () async {
+      await db.registerUser(username: 'bob', password: 'bob-pass-123');
+      await db.logout();
+      await db.login(username: 'bob', password: 'bob-pass-123');
+
+      final bobAccountId = db.currentAccountId;
+      final bobGroup = await db.createGroup('bob-shared-group');
+      await db.inviteUserToGroup(groupId: bobGroup, inviteeUsername: 'alice');
+
+      await db.logout();
+      await db.login(username: 'alice', password: 'alice-pass-123');
+      final pending = await db.watchPendingInvitesForCurrentUser().first;
+      final invite = pending.firstWhere((i) => i.groupId == bobGroup);
+      await db.acceptInvite(invite.id);
+
+      expect(db.currentAccountId, bobAccountId);
+
+      await db.logout();
+      await db.login(username: 'alice', password: 'alice-pass-123');
+
+      expect(db.currentAccountId, bobAccountId);
+      final groups = await db.watchGroupsForCurrentAccount().first;
+      expect(groups.any((g) => g.id == bobGroup), isTrue);
+    });
+
+    test('invite requires existing target username', () async {
+      await db.createAccount('inviter-team', accountPassword: 'inviter-pass');
+      final groupId = await db.createGroup('inviter-group');
+
+      expect(
+        () => db.inviteUserToGroup(
+          groupId: groupId,
+          inviteeUsername: 'missing_user',
+        ),
+        throwsA(predicate((e) => e.toString().contains('招待対象ユーザが存在しません'))),
+      );
+
+      final pending = await db.watchSentInvitesForCurrentUser().first;
+      expect(pending, isEmpty);
     });
   });
 }
