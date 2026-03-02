@@ -182,8 +182,8 @@ extension AccountControlDao on AppDatabase {
   }
 
   Stream<List<Account>> watchAccounts() {
-    return _watchByAppContext(() {
-      final userId = currentUserId;
+    return _watchByAppContext((context) {
+      final userId = context?.activeUserId;
       if (userId == null) {
         return Stream.value(const <Account>[]);
       }
@@ -350,13 +350,13 @@ extension AccountControlDao on AppDatabase {
   }
 
   Stream<List<UserGroup>> watchGroupsForCurrentAccount() {
-    return _watchByAppContext(() {
-      final userId = currentUserId;
+    return _watchByAppContext((context) {
+      final userId = context?.activeUserId;
       if (userId == null) {
         return Stream.value(const <UserGroup>[]);
       }
-      final accountId = currentAccountId;
-      if (accountId.isEmpty) {
+      final accountId = context?.activeAccountId;
+      if (accountId == null || accountId.isEmpty) {
         return Stream.value(const <UserGroup>[]);
       }
 
@@ -455,9 +455,9 @@ extension AccountControlDao on AppDatabase {
   }
 
   Stream<List<GroupMemberView>> watchGroupMembers(int groupId) {
-    return _watchByAppContext(() {
-      final accountId = currentAccountId;
-      if (accountId.isEmpty) {
+    return _watchByAppContext((context) {
+      final accountId = context?.activeAccountId;
+      if (accountId == null || accountId.isEmpty) {
         return Stream.value(const <GroupMemberView>[]);
       }
 
@@ -510,8 +510,8 @@ extension AccountControlDao on AppDatabase {
   }
 
   Stream<List<GroupInviteView>> watchPendingInvitesForCurrentUser() {
-    return _watchByAppContext(() {
-      final userId = currentUserId;
+    return _watchByAppContext((context) {
+      final userId = context?.activeUserId;
       if (userId == null) {
         return Stream.value(const <GroupInviteView>[]);
       }
@@ -544,13 +544,13 @@ extension AccountControlDao on AppDatabase {
   }
 
   Stream<List<GroupInviteView>> watchSentInvitesForCurrentUser() {
-    return _watchByAppContext(() {
-      final userId = currentUserId;
+    return _watchByAppContext((context) {
+      final userId = context?.activeUserId;
       if (userId == null) {
         return Stream.value(const <GroupInviteView>[]);
       }
-      final accountId = currentAccountId;
-      if (accountId.isEmpty) {
+      final accountId = context?.activeAccountId;
+      if (accountId == null || accountId.isEmpty) {
         return Stream.value(const <GroupInviteView>[]);
       }
 
@@ -752,23 +752,24 @@ extension AccountControlDao on AppDatabase {
             message.contains('accounts.name');
   }
 
-  Stream<T> _watchByAppContext<T>(Stream<T> Function() watchFactory) {
+  Stream<T> _watchByAppContext<T>(
+    Stream<T> Function(AppContext? context) watchFactory,
+  ) {
     return Stream.multi((controller) {
       StreamSubscription<T>? dataSub;
       StreamSubscription<AppContext?>? contextSub;
 
-      Future<void> bind() async {
+      Future<void> bind(AppContext? context) async {
         await dataSub?.cancel();
-        dataSub = watchFactory().listen(
+        dataSub = watchFactory(context).listen(
           controller.add,
           onError: controller.addError,
         );
       }
 
-      bind();
       contextSub = watchAppContext().listen(
-        (_) {
-          bind();
+        (context) {
+          bind(context);
         },
         onError: controller.addError,
       );

@@ -243,5 +243,38 @@ void main() {
           .getSingle();
       expect(inviteBStatus, 'declined');
     });
+
+    test('login user switch updates pending invites and joined groups',
+        () async {
+      await db.registerUser(username: 'bob', password: 'bob-pass-123');
+      await db.logout();
+      await db.login(username: 'bob', password: 'bob-pass-123');
+
+      await db.createAccount('bob-team', accountPassword: 'bob-team-pass');
+      final bobGroup = await db.createGroup('bob-group');
+      await db.inviteUserToGroup(groupId: bobGroup, inviteeUsername: 'alice');
+
+      await db.logout();
+      await db.login(username: 'alice', password: 'alice-pass-123');
+
+      final pendingForAlice =
+          await db.watchPendingInvitesForCurrentUser().first;
+      expect(pendingForAlice.any((i) => i.groupId == bobGroup), isTrue);
+
+      final noGroupsInPersonal = await db.watchGroupsForCurrentAccount().first;
+      expect(noGroupsInPersonal.any((g) => g.id == bobGroup), isFalse);
+
+      final inviteId =
+          pendingForAlice.firstWhere((i) => i.groupId == bobGroup).id;
+      await db.acceptInvite(inviteId);
+
+      final groupsAfterAccept = await db.watchGroupsForCurrentAccount().first;
+      expect(groupsAfterAccept.any((g) => g.id == bobGroup), isTrue);
+
+      await db.logout();
+      await db.login(username: 'bob', password: 'bob-pass-123');
+      final pendingForBob = await db.watchPendingInvitesForCurrentUser().first;
+      expect(pendingForBob.any((i) => i.groupId == bobGroup), isFalse);
+    });
   });
 }
