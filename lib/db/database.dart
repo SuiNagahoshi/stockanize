@@ -208,15 +208,20 @@ class AppDatabase extends _$AppDatabase {
     int? groupId,
     int? userId,
   }) async {
+    final normalizedGroupId = await _normalizeScopeGroupId(
+      accountId: accountId,
+      groupId: groupId,
+      userId: userId,
+    );
     await (update(appContexts)..where((t) => t.id.equals(contextRowId))).write(
       AppContextsCompanion(
         activeAccountId: Value(accountId),
-        activeGroupId: Value(groupId),
+        activeGroupId: Value(normalizedGroupId),
         activeUserId: Value(userId),
       ),
     );
     _activeAccountId = accountId;
-    _activeGroupId = groupId;
+    _activeGroupId = normalizedGroupId;
     _activeUserId = userId;
   }
 
@@ -246,10 +251,15 @@ class AppDatabase extends _$AppDatabase {
       userId: resolvedUserId,
       previousGroupId: previousGroupId,
     );
+    final safeNextGroupId = await _normalizeScopeGroupId(
+      accountId: accountId,
+      groupId: nextGroupId,
+      userId: resolvedUserId,
+    );
 
     await setActiveScope(
       accountId: accountId,
-      groupId: nextGroupId,
+      groupId: safeNextGroupId,
       userId: resolvedUserId,
     );
   }
@@ -334,6 +344,29 @@ class AppDatabase extends _$AppDatabase {
       return null;
     }
     return nextGroups.first.readTable(userGroups).id;
+  }
+
+  Future<int?> _normalizeScopeGroupId({
+    required String accountId,
+    required int? groupId,
+    required int? userId,
+  }) async {
+    if (groupId == null || userId == null) {
+      return null;
+    }
+
+    final scopedGroup = await (select(userGroups).join([
+      innerJoin(groupMembers, groupMembers.groupId.equalsExp(userGroups.id)),
+    ])
+          ..where(userGroups.id.equals(groupId))
+          ..where(userGroups.accountId.equals(accountId))
+          ..where(groupMembers.userId.equals(userId)))
+        .getSingleOrNull();
+
+    if (scopedGroup == null) {
+      return null;
+    }
+    return groupId;
   }
 }
 
