@@ -154,5 +154,84 @@ void main() {
       expect(sentOnBAgain.length, 1);
       expect(sentOnBAgain.first.groupName, 'group-b');
     });
+
+    test('repeated account switching keeps group scope consistent', () async {
+      final accountA = await db.createAccount(
+        'switch-a',
+        accountPassword: 'switch-a-pass',
+      );
+      final groupA = await db.createGroup('switch-group-a');
+
+      final accountB = await db.createAccount(
+        'switch-b',
+        accountPassword: 'switch-b-pass',
+      );
+      final groupB = await db.createGroup('switch-group-b');
+
+      await db.switchActiveAccount(
+        accountId: accountA,
+        accountPassword: 'switch-a-pass',
+      );
+      await db.setActiveGroup(groupA);
+
+      for (var i = 0; i < 10; i++) {
+        await db.switchActiveAccount(
+          accountId: accountB,
+          accountPassword: 'switch-b-pass',
+        );
+        if (db.currentGroupId != null) {
+          final group = await (db.select(db.userGroups)
+                ..where((g) => g.id.equals(db.currentGroupId!)))
+              .getSingleOrNull();
+          expect(group?.accountId, db.currentAccountId);
+        }
+
+        await db.switchActiveAccount(
+          accountId: accountA,
+          accountPassword: 'switch-a-pass',
+        );
+        if (db.currentGroupId != null) {
+          final group = await (db.select(db.userGroups)
+                ..where((g) => g.id.equals(db.currentGroupId!)))
+              .getSingleOrNull();
+          expect(group?.accountId, db.currentAccountId);
+        }
+      }
+
+      await db.switchActiveAccount(
+        accountId: accountB,
+        accountPassword: 'switch-b-pass',
+      );
+      await db.setActiveGroup(groupB);
+      expect(db.currentGroupId, groupB);
+    });
+
+    test('accept and decline reject invites outside current account', () async {
+      await db.registerUser(username: 'charlie', password: 'charlie-pass-123');
+      await db.logout();
+      await db.login(username: 'charlie', password: 'charlie-pass-123');
+
+      await db.createAccount('charlie-a', accountPassword: 'charlie-a-pass');
+      final groupA = await db.createGroup('charlie-group-a');
+      final inviteA =
+          await db.inviteUserToGroup(groupId: groupA, inviteeUsername: 'alice');
+
+      await db.createAccount('charlie-b', accountPassword: 'charlie-b-pass');
+      final groupB = await db.createGroup('charlie-group-b');
+      final inviteB =
+          await db.inviteUserToGroup(groupId: groupB, inviteeUsername: 'alice');
+
+      await db.logout();
+      await db.login(username: 'alice', password: 'alice-pass-123');
+
+      expect(
+        () => db.acceptInvite(inviteA),
+        throwsA(predicate((e) => e.toString().contains('現在のアカウント外の招待です'))),
+      );
+      expect(
+        () => db.declineInvite(inviteB),
+        throwsA(predicate((e) => e.toString().contains('現在のアカウント外の招待です'))),
+      );
+    });
   });
 }
