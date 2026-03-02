@@ -38,7 +38,7 @@ class AppDatabase extends _$AppDatabase {
   int? get currentUserId => _activeUserId;
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -108,6 +108,34 @@ class AppDatabase extends _$AppDatabase {
           if (from < 6) {
             if (!await _tableExists('user_last_scopes')) {
               await m.createTable(userLastScopes);
+            }
+          }
+
+          if (from < 7) {
+            if (await _tableExists('group_invites') &&
+                !await _columnExists('group_invites', 'invitee_user_id')) {
+              await m.addColumn(groupInvites, groupInvites.inviteeUserId);
+            }
+
+            if (await _tableExists('group_invites') &&
+                await _columnExists('group_invites', 'invitee_user_id')) {
+              await customStatement('''
+                UPDATE group_invites
+                SET invitee_user_id = (
+                  SELECT u.id
+                  FROM users u
+                  WHERE u.username = group_invites.invitee_username
+                  LIMIT 1
+                )
+                WHERE invitee_user_id IS NULL
+              ''');
+
+              await customStatement('''
+                UPDATE group_invites
+                SET status = 'invalid'
+                WHERE status = 'pending'
+                  AND invitee_user_id IS NULL
+              ''');
             }
           }
         },
@@ -294,6 +322,8 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> setActiveGroup(int? groupId) async {
+    String nextAccountId = currentAccountId;
+
     if (groupId != null) {
       final userId = _activeUserId;
       if (userId == null) {
@@ -307,10 +337,18 @@ class AppDatabase extends _$AppDatabase {
       if (member == null) {
         throw StateError('このユーザは対象グループに参加していません');
       }
+
+      final group = await (select(userGroups)
+            ..where((g) => g.id.equals(groupId)))
+          .getSingleOrNull();
+      if (group == null) {
+        throw StateError('対象グループが見つかりません');
+      }
+      nextAccountId = group.accountId;
     }
 
     await setActiveScope(
-      accountId: currentAccountId,
+      accountId: nextAccountId,
       groupId: groupId,
       userId: _activeUserId,
     );

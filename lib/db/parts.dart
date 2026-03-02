@@ -73,6 +73,9 @@ class GroupInvites extends Table {
   IntColumn get invitedByUserId => integer()
       .references(Users, #id, onDelete: KeyAction.setNull)
       .nullable()();
+  IntColumn get inviteeUserId => integer()
+      .references(Users, #id, onDelete: KeyAction.cascade)
+      .nullable()();
   TextColumn get inviteeUsername => text()();
   TextColumn get token => text().unique()();
   DateTimeColumn get expiresAt => dateTime()();

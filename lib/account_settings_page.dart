@@ -576,7 +576,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                 builder: (context, accountSnapshot) {
                   final accounts = accountSnapshot.data ?? const <Account>[];
                   return StreamBuilder<List<UserGroup>>(
-                    stream: widget.repository.watchGroupsForCurrentAccount(),
+                    stream: widget.repository.watchGroupsForCurrentUser(),
                     builder: (context, groupSnapshot) {
                       if (groupSnapshot.hasError) {
                         return _buildLoggedIn(
@@ -719,12 +719,6 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    FilledButton.tonal(
-                      onPressed: _busy
-                          ? null
-                          : () => _showAccountSwitchDialog(accounts),
-                      child: const Text('アカウント切り替え'),
-                    ),
                     OutlinedButton(
                       onPressed: _busy ? null : _showChangePasswordDialog,
                       child: const Text('パスワード変更'),

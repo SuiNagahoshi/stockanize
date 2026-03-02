@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stockanize/db/account_control.dart';
@@ -316,6 +317,59 @@ void main() {
 
       final pending = await db.watchSentInvitesForCurrentUser().first;
       expect(pending, isEmpty);
+    });
+
+    test('pending invites are resolved by invitee_user_id', () async {
+      await db.registerUser(username: 'bob', password: 'bob-pass-123');
+      await db.logout();
+      await db.login(username: 'bob', password: 'bob-pass-123');
+
+      final groupId = await db.createGroup('bob-group');
+      await db.inviteUserToGroup(groupId: groupId, inviteeUsername: 'alice');
+
+      await db.logout();
+      await db.login(username: 'alice', password: 'alice-pass-123');
+
+      final pending = await db.watchPendingInvitesForCurrentUser().first;
+      expect(pending.any((i) => i.groupId == groupId), isTrue);
+    });
+
+    test('legacy unresolved invites are marked invalid by migration logic',
+        () async {
+      final groupId = await db.createGroup('legacy-group');
+      await db.into(db.groupInvites).insert(
+            GroupInvitesCompanion.insert(
+              groupId: groupId,
+              invitedByUserId: Value(db.currentUserId),
+              inviteeUserId: const Value.absent(),
+              inviteeUsername: 'missing_legacy_user',
+              token: 'legacy-token-1',
+              expiresAt: DateTime.now().add(const Duration(days: 1)),
+              status: const Value('pending'),
+            ),
+          );
+
+      await db.customStatement('''
+        UPDATE group_invites
+        SET invitee_user_id = (
+          SELECT u.id
+          FROM users u
+          WHERE u.username = group_invites.invitee_username
+          LIMIT 1
+        )
+        WHERE invitee_user_id IS NULL
+      ''');
+      await db.customStatement('''
+        UPDATE group_invites
+        SET status = 'invalid'
+        WHERE status = 'pending'
+          AND invitee_user_id IS NULL
+      ''');
+
+      final invalidInvite = await (db.select(db.groupInvites)
+            ..where((i) => i.token.equals('legacy-token-1')))
+          .getSingle();
+      expect(invalidInvite.status, 'invalid');
     });
 
     test('login restores last account per user after other user changes scope',

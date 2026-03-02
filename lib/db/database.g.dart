@@ -1613,6 +1613,15 @@ class $GroupInvitesTable extends GroupInvites
       requiredDuringInsert: false,
       defaultConstraints: GeneratedColumn.constraintIsAlways(
           'REFERENCES users (id) ON DELETE SET NULL'));
+  static const VerificationMeta _inviteeUserIdMeta =
+      const VerificationMeta('inviteeUserId');
+  @override
+  late final GeneratedColumn<int> inviteeUserId = GeneratedColumn<int>(
+      'invitee_user_id', aliasedName, true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'REFERENCES users (id) ON DELETE CASCADE'));
   static const VerificationMeta _inviteeUsernameMeta =
       const VerificationMeta('inviteeUsername');
   @override
@@ -1652,6 +1661,7 @@ class $GroupInvitesTable extends GroupInvites
         id,
         groupId,
         invitedByUserId,
+        inviteeUserId,
         inviteeUsername,
         token,
         expiresAt,
@@ -1682,6 +1692,12 @@ class $GroupInvitesTable extends GroupInvites
           _invitedByUserIdMeta,
           invitedByUserId.isAcceptableOrUnknown(
               data['invited_by_user_id']!, _invitedByUserIdMeta));
+    }
+    if (data.containsKey('invitee_user_id')) {
+      context.handle(
+          _inviteeUserIdMeta,
+          inviteeUserId.isAcceptableOrUnknown(
+              data['invitee_user_id']!, _inviteeUserIdMeta));
     }
     if (data.containsKey('invitee_username')) {
       context.handle(
@@ -1726,6 +1742,8 @@ class $GroupInvitesTable extends GroupInvites
           .read(DriftSqlType.int, data['${effectivePrefix}group_id'])!,
       invitedByUserId: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}invited_by_user_id']),
+      inviteeUserId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}invitee_user_id']),
       inviteeUsername: attachedDatabase.typeMapping.read(
           DriftSqlType.string, data['${effectivePrefix}invitee_username'])!,
       token: attachedDatabase.typeMapping
@@ -1749,6 +1767,7 @@ class GroupInvite extends DataClass implements Insertable<GroupInvite> {
   final int id;
   final int groupId;
   final int? invitedByUserId;
+  final int? inviteeUserId;
   final String inviteeUsername;
   final String token;
   final DateTime expiresAt;
@@ -1758,6 +1777,7 @@ class GroupInvite extends DataClass implements Insertable<GroupInvite> {
       {required this.id,
       required this.groupId,
       this.invitedByUserId,
+      this.inviteeUserId,
       required this.inviteeUsername,
       required this.token,
       required this.expiresAt,
@@ -1770,6 +1790,9 @@ class GroupInvite extends DataClass implements Insertable<GroupInvite> {
     map['group_id'] = Variable<int>(groupId);
     if (!nullToAbsent || invitedByUserId != null) {
       map['invited_by_user_id'] = Variable<int>(invitedByUserId);
+    }
+    if (!nullToAbsent || inviteeUserId != null) {
+      map['invitee_user_id'] = Variable<int>(inviteeUserId);
     }
     map['invitee_username'] = Variable<String>(inviteeUsername);
     map['token'] = Variable<String>(token);
@@ -1786,6 +1809,9 @@ class GroupInvite extends DataClass implements Insertable<GroupInvite> {
       invitedByUserId: invitedByUserId == null && nullToAbsent
           ? const Value.absent()
           : Value(invitedByUserId),
+      inviteeUserId: inviteeUserId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(inviteeUserId),
       inviteeUsername: Value(inviteeUsername),
       token: Value(token),
       expiresAt: Value(expiresAt),
@@ -1801,6 +1827,7 @@ class GroupInvite extends DataClass implements Insertable<GroupInvite> {
       id: serializer.fromJson<int>(json['id']),
       groupId: serializer.fromJson<int>(json['groupId']),
       invitedByUserId: serializer.fromJson<int?>(json['invitedByUserId']),
+      inviteeUserId: serializer.fromJson<int?>(json['inviteeUserId']),
       inviteeUsername: serializer.fromJson<String>(json['inviteeUsername']),
       token: serializer.fromJson<String>(json['token']),
       expiresAt: serializer.fromJson<DateTime>(json['expiresAt']),
@@ -1815,6 +1842,7 @@ class GroupInvite extends DataClass implements Insertable<GroupInvite> {
       'id': serializer.toJson<int>(id),
       'groupId': serializer.toJson<int>(groupId),
       'invitedByUserId': serializer.toJson<int?>(invitedByUserId),
+      'inviteeUserId': serializer.toJson<int?>(inviteeUserId),
       'inviteeUsername': serializer.toJson<String>(inviteeUsername),
       'token': serializer.toJson<String>(token),
       'expiresAt': serializer.toJson<DateTime>(expiresAt),
@@ -1827,6 +1855,7 @@ class GroupInvite extends DataClass implements Insertable<GroupInvite> {
           {int? id,
           int? groupId,
           Value<int?> invitedByUserId = const Value.absent(),
+          Value<int?> inviteeUserId = const Value.absent(),
           String? inviteeUsername,
           String? token,
           DateTime? expiresAt,
@@ -1838,6 +1867,8 @@ class GroupInvite extends DataClass implements Insertable<GroupInvite> {
         invitedByUserId: invitedByUserId.present
             ? invitedByUserId.value
             : this.invitedByUserId,
+        inviteeUserId:
+            inviteeUserId.present ? inviteeUserId.value : this.inviteeUserId,
         inviteeUsername: inviteeUsername ?? this.inviteeUsername,
         token: token ?? this.token,
         expiresAt: expiresAt ?? this.expiresAt,
@@ -1851,6 +1882,9 @@ class GroupInvite extends DataClass implements Insertable<GroupInvite> {
       invitedByUserId: data.invitedByUserId.present
           ? data.invitedByUserId.value
           : this.invitedByUserId,
+      inviteeUserId: data.inviteeUserId.present
+          ? data.inviteeUserId.value
+          : this.inviteeUserId,
       inviteeUsername: data.inviteeUsername.present
           ? data.inviteeUsername.value
           : this.inviteeUsername,
@@ -1867,6 +1901,7 @@ class GroupInvite extends DataClass implements Insertable<GroupInvite> {
           ..write('id: $id, ')
           ..write('groupId: $groupId, ')
           ..write('invitedByUserId: $invitedByUserId, ')
+          ..write('inviteeUserId: $inviteeUserId, ')
           ..write('inviteeUsername: $inviteeUsername, ')
           ..write('token: $token, ')
           ..write('expiresAt: $expiresAt, ')
@@ -1877,8 +1912,8 @@ class GroupInvite extends DataClass implements Insertable<GroupInvite> {
   }
 
   @override
-  int get hashCode => Object.hash(id, groupId, invitedByUserId, inviteeUsername,
-      token, expiresAt, status, createdAt);
+  int get hashCode => Object.hash(id, groupId, invitedByUserId, inviteeUserId,
+      inviteeUsername, token, expiresAt, status, createdAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1886,6 +1921,7 @@ class GroupInvite extends DataClass implements Insertable<GroupInvite> {
           other.id == this.id &&
           other.groupId == this.groupId &&
           other.invitedByUserId == this.invitedByUserId &&
+          other.inviteeUserId == this.inviteeUserId &&
           other.inviteeUsername == this.inviteeUsername &&
           other.token == this.token &&
           other.expiresAt == this.expiresAt &&
@@ -1897,6 +1933,7 @@ class GroupInvitesCompanion extends UpdateCompanion<GroupInvite> {
   final Value<int> id;
   final Value<int> groupId;
   final Value<int?> invitedByUserId;
+  final Value<int?> inviteeUserId;
   final Value<String> inviteeUsername;
   final Value<String> token;
   final Value<DateTime> expiresAt;
@@ -1906,6 +1943,7 @@ class GroupInvitesCompanion extends UpdateCompanion<GroupInvite> {
     this.id = const Value.absent(),
     this.groupId = const Value.absent(),
     this.invitedByUserId = const Value.absent(),
+    this.inviteeUserId = const Value.absent(),
     this.inviteeUsername = const Value.absent(),
     this.token = const Value.absent(),
     this.expiresAt = const Value.absent(),
@@ -1916,6 +1954,7 @@ class GroupInvitesCompanion extends UpdateCompanion<GroupInvite> {
     this.id = const Value.absent(),
     required int groupId,
     this.invitedByUserId = const Value.absent(),
+    this.inviteeUserId = const Value.absent(),
     required String inviteeUsername,
     required String token,
     required DateTime expiresAt,
@@ -1929,6 +1968,7 @@ class GroupInvitesCompanion extends UpdateCompanion<GroupInvite> {
     Expression<int>? id,
     Expression<int>? groupId,
     Expression<int>? invitedByUserId,
+    Expression<int>? inviteeUserId,
     Expression<String>? inviteeUsername,
     Expression<String>? token,
     Expression<DateTime>? expiresAt,
@@ -1939,6 +1979,7 @@ class GroupInvitesCompanion extends UpdateCompanion<GroupInvite> {
       if (id != null) 'id': id,
       if (groupId != null) 'group_id': groupId,
       if (invitedByUserId != null) 'invited_by_user_id': invitedByUserId,
+      if (inviteeUserId != null) 'invitee_user_id': inviteeUserId,
       if (inviteeUsername != null) 'invitee_username': inviteeUsername,
       if (token != null) 'token': token,
       if (expiresAt != null) 'expires_at': expiresAt,
@@ -1951,6 +1992,7 @@ class GroupInvitesCompanion extends UpdateCompanion<GroupInvite> {
       {Value<int>? id,
       Value<int>? groupId,
       Value<int?>? invitedByUserId,
+      Value<int?>? inviteeUserId,
       Value<String>? inviteeUsername,
       Value<String>? token,
       Value<DateTime>? expiresAt,
@@ -1960,6 +2002,7 @@ class GroupInvitesCompanion extends UpdateCompanion<GroupInvite> {
       id: id ?? this.id,
       groupId: groupId ?? this.groupId,
       invitedByUserId: invitedByUserId ?? this.invitedByUserId,
+      inviteeUserId: inviteeUserId ?? this.inviteeUserId,
       inviteeUsername: inviteeUsername ?? this.inviteeUsername,
       token: token ?? this.token,
       expiresAt: expiresAt ?? this.expiresAt,
@@ -1979,6 +2022,9 @@ class GroupInvitesCompanion extends UpdateCompanion<GroupInvite> {
     }
     if (invitedByUserId.present) {
       map['invited_by_user_id'] = Variable<int>(invitedByUserId.value);
+    }
+    if (inviteeUserId.present) {
+      map['invitee_user_id'] = Variable<int>(inviteeUserId.value);
     }
     if (inviteeUsername.present) {
       map['invitee_username'] = Variable<String>(inviteeUsername.value);
@@ -2004,6 +2050,7 @@ class GroupInvitesCompanion extends UpdateCompanion<GroupInvite> {
           ..write('id: $id, ')
           ..write('groupId: $groupId, ')
           ..write('invitedByUserId: $invitedByUserId, ')
+          ..write('inviteeUserId: $inviteeUserId, ')
           ..write('inviteeUsername: $inviteeUsername, ')
           ..write('token: $token, ')
           ..write('expiresAt: $expiresAt, ')
@@ -3453,6 +3500,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
             ],
           ),
           WritePropagation(
+            on: TableUpdateQuery.onTableName('users',
+                limitUpdateKind: UpdateKind.delete),
+            result: [
+              TableUpdate('group_invites', kind: UpdateKind.delete),
+            ],
+          ),
+          WritePropagation(
             on: TableUpdateQuery.onTableName('user_groups',
                 limitUpdateKind: UpdateKind.delete),
             result: [
@@ -3553,22 +3607,6 @@ final class $$UsersTableReferences
         manager.$state.copyWith(prefetchedData: cache));
   }
 
-  static MultiTypedResultKey<$GroupInvitesTable, List<GroupInvite>>
-      _groupInvitesRefsTable(_$AppDatabase db) =>
-          MultiTypedResultKey.fromTable(db.groupInvites,
-              aliasName: $_aliasNameGenerator(
-                  db.users.id, db.groupInvites.invitedByUserId));
-
-  $$GroupInvitesTableProcessedTableManager get groupInvitesRefs {
-    final manager = $$GroupInvitesTableTableManager($_db, $_db.groupInvites)
-        .filter(
-            (f) => f.invitedByUserId.id.sqlEquals($_itemColumn<int>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(_groupInvitesRefsTable($_db));
-    return ProcessedTableManager(
-        manager.$state.copyWith(prefetchedData: cache));
-  }
-
   static MultiTypedResultKey<$AppContextsTable, List<AppContext>>
       _appContextsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
           db.appContexts,
@@ -3657,27 +3695,6 @@ class $$UsersTableFilterComposer extends Composer<_$AppDatabase, $UsersTable> {
             $$GroupMembersTableFilterComposer(
               $db: $db,
               $table: $db.groupMembers,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
-    return f(composer);
-  }
-
-  Expression<bool> groupInvitesRefs(
-      Expression<bool> Function($$GroupInvitesTableFilterComposer f) f) {
-    final $$GroupInvitesTableFilterComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.id,
-        referencedTable: $db.groupInvites,
-        getReferencedColumn: (t) => t.invitedByUserId,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$GroupInvitesTableFilterComposer(
-              $db: $db,
-              $table: $db.groupInvites,
               $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
               joinBuilder: joinBuilder,
               $removeJoinBuilderFromRootComposer:
@@ -3822,27 +3839,6 @@ class $$UsersTableAnnotationComposer
     return f(composer);
   }
 
-  Expression<T> groupInvitesRefs<T extends Object>(
-      Expression<T> Function($$GroupInvitesTableAnnotationComposer a) f) {
-    final $$GroupInvitesTableAnnotationComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.id,
-        referencedTable: $db.groupInvites,
-        getReferencedColumn: (t) => t.invitedByUserId,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$GroupInvitesTableAnnotationComposer(
-              $db: $db,
-              $table: $db.groupInvites,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
-    return f(composer);
-  }
-
   Expression<T> appContextsRefs<T extends Object>(
       Expression<T> Function($$AppContextsTableAnnotationComposer a) f) {
     final $$AppContextsTableAnnotationComposer composer = $composerBuilder(
@@ -3900,7 +3896,6 @@ class $$UsersTableTableManager extends RootTableManager<
     PrefetchHooks Function(
         {bool accountMembersRefs,
         bool groupMembersRefs,
-        bool groupInvitesRefs,
         bool appContextsRefs,
         bool userLastScopesRefs})> {
   $$UsersTableTableManager(_$AppDatabase db, $UsersTable table)
@@ -3948,7 +3943,6 @@ class $$UsersTableTableManager extends RootTableManager<
           prefetchHooksCallback: (
               {accountMembersRefs = false,
               groupMembersRefs = false,
-              groupInvitesRefs = false,
               appContextsRefs = false,
               userLastScopesRefs = false}) {
             return PrefetchHooks(
@@ -3956,7 +3950,6 @@ class $$UsersTableTableManager extends RootTableManager<
               explicitlyWatchedTables: [
                 if (accountMembersRefs) db.accountMembers,
                 if (groupMembersRefs) db.groupMembers,
-                if (groupInvitesRefs) db.groupInvites,
                 if (appContextsRefs) db.appContexts,
                 if (userLastScopesRefs) db.userLastScopes
               ],
@@ -3986,18 +3979,6 @@ class $$UsersTableTableManager extends RootTableManager<
                         referencedItemsForCurrentItem: (item,
                                 referencedItems) =>
                             referencedItems.where((e) => e.userId == item.id),
-                        typedResults: items),
-                  if (groupInvitesRefs)
-                    await $_getPrefetchedData<User, $UsersTable, GroupInvite>(
-                        currentTable: table,
-                        referencedTable:
-                            $$UsersTableReferences._groupInvitesRefsTable(db),
-                        managerFromTypedResult: (p0) =>
-                            $$UsersTableReferences(db, table, p0)
-                                .groupInvitesRefs,
-                        referencedItemsForCurrentItem:
-                            (item, referencedItems) => referencedItems
-                                .where((e) => e.invitedByUserId == item.id),
                         typedResults: items),
                   if (appContextsRefs)
                     await $_getPrefetchedData<User, $UsersTable, AppContext>(
@@ -4044,7 +4025,6 @@ typedef $$UsersTableProcessedTableManager = ProcessedTableManager<
     PrefetchHooks Function(
         {bool accountMembersRefs,
         bool groupMembersRefs,
-        bool groupInvitesRefs,
         bool appContextsRefs,
         bool userLastScopesRefs})>;
 typedef $$AccountsTableCreateCompanionBuilder = AccountsCompanion Function({
@@ -5878,6 +5858,7 @@ typedef $$GroupInvitesTableCreateCompanionBuilder = GroupInvitesCompanion
   Value<int> id,
   required int groupId,
   Value<int?> invitedByUserId,
+  Value<int?> inviteeUserId,
   required String inviteeUsername,
   required String token,
   required DateTime expiresAt,
@@ -5889,6 +5870,7 @@ typedef $$GroupInvitesTableUpdateCompanionBuilder = GroupInvitesCompanion
   Value<int> id,
   Value<int> groupId,
   Value<int?> invitedByUserId,
+  Value<int?> inviteeUserId,
   Value<String> inviteeUsername,
   Value<String> token,
   Value<DateTime> expiresAt,
@@ -5925,6 +5907,21 @@ final class $$GroupInvitesTableReferences
     final manager = $$UsersTableTableManager($_db, $_db.users)
         .filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_invitedByUserIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: [item]));
+  }
+
+  static $UsersTable _inviteeUserIdTable(_$AppDatabase db) =>
+      db.users.createAlias(
+          $_aliasNameGenerator(db.groupInvites.inviteeUserId, db.users.id));
+
+  $$UsersTableProcessedTableManager? get inviteeUserId {
+    final $_column = $_itemColumn<int>('invitee_user_id');
+    if ($_column == null) return null;
+    final manager = $$UsersTableTableManager($_db, $_db.users)
+        .filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_inviteeUserIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: [item]));
@@ -5983,6 +5980,26 @@ class $$GroupInvitesTableFilterComposer
     final $$UsersTableFilterComposer composer = $composerBuilder(
         composer: this,
         getCurrentColumn: (t) => t.invitedByUserId,
+        referencedTable: $db.users,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$UsersTableFilterComposer(
+              $db: $db,
+              $table: $db.users,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+
+  $$UsersTableFilterComposer get inviteeUserId {
+    final $$UsersTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.inviteeUserId,
         referencedTable: $db.users,
         getReferencedColumn: (t) => t.id,
         builder: (joinBuilder,
@@ -6067,6 +6084,26 @@ class $$GroupInvitesTableOrderingComposer
             ));
     return composer;
   }
+
+  $$UsersTableOrderingComposer get inviteeUserId {
+    final $$UsersTableOrderingComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.inviteeUserId,
+        referencedTable: $db.users,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$UsersTableOrderingComposer(
+              $db: $db,
+              $table: $db.users,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
 }
 
 class $$GroupInvitesTableAnnotationComposer
@@ -6135,6 +6172,26 @@ class $$GroupInvitesTableAnnotationComposer
             ));
     return composer;
   }
+
+  $$UsersTableAnnotationComposer get inviteeUserId {
+    final $$UsersTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.inviteeUserId,
+        referencedTable: $db.users,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$UsersTableAnnotationComposer(
+              $db: $db,
+              $table: $db.users,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
 }
 
 class $$GroupInvitesTableTableManager extends RootTableManager<
@@ -6148,7 +6205,8 @@ class $$GroupInvitesTableTableManager extends RootTableManager<
     $$GroupInvitesTableUpdateCompanionBuilder,
     (GroupInvite, $$GroupInvitesTableReferences),
     GroupInvite,
-    PrefetchHooks Function({bool groupId, bool invitedByUserId})> {
+    PrefetchHooks Function(
+        {bool groupId, bool invitedByUserId, bool inviteeUserId})> {
   $$GroupInvitesTableTableManager(_$AppDatabase db, $GroupInvitesTable table)
       : super(TableManagerState(
           db: db,
@@ -6163,6 +6221,7 @@ class $$GroupInvitesTableTableManager extends RootTableManager<
             Value<int> id = const Value.absent(),
             Value<int> groupId = const Value.absent(),
             Value<int?> invitedByUserId = const Value.absent(),
+            Value<int?> inviteeUserId = const Value.absent(),
             Value<String> inviteeUsername = const Value.absent(),
             Value<String> token = const Value.absent(),
             Value<DateTime> expiresAt = const Value.absent(),
@@ -6173,6 +6232,7 @@ class $$GroupInvitesTableTableManager extends RootTableManager<
             id: id,
             groupId: groupId,
             invitedByUserId: invitedByUserId,
+            inviteeUserId: inviteeUserId,
             inviteeUsername: inviteeUsername,
             token: token,
             expiresAt: expiresAt,
@@ -6183,6 +6243,7 @@ class $$GroupInvitesTableTableManager extends RootTableManager<
             Value<int> id = const Value.absent(),
             required int groupId,
             Value<int?> invitedByUserId = const Value.absent(),
+            Value<int?> inviteeUserId = const Value.absent(),
             required String inviteeUsername,
             required String token,
             required DateTime expiresAt,
@@ -6193,6 +6254,7 @@ class $$GroupInvitesTableTableManager extends RootTableManager<
             id: id,
             groupId: groupId,
             invitedByUserId: invitedByUserId,
+            inviteeUserId: inviteeUserId,
             inviteeUsername: inviteeUsername,
             token: token,
             expiresAt: expiresAt,
@@ -6205,7 +6267,10 @@ class $$GroupInvitesTableTableManager extends RootTableManager<
                     $$GroupInvitesTableReferences(db, table, e)
                   ))
               .toList(),
-          prefetchHooksCallback: ({groupId = false, invitedByUserId = false}) {
+          prefetchHooksCallback: (
+              {groupId = false,
+              invitedByUserId = false,
+              inviteeUserId = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [],
@@ -6243,6 +6308,17 @@ class $$GroupInvitesTableTableManager extends RootTableManager<
                         .id,
                   ) as T;
                 }
+                if (inviteeUserId) {
+                  state = state.withJoin(
+                    currentTable: table,
+                    currentColumn: table.inviteeUserId,
+                    referencedTable:
+                        $$GroupInvitesTableReferences._inviteeUserIdTable(db),
+                    referencedColumn: $$GroupInvitesTableReferences
+                        ._inviteeUserIdTable(db)
+                        .id,
+                  ) as T;
+                }
 
                 return state;
               },
@@ -6265,7 +6341,8 @@ typedef $$GroupInvitesTableProcessedTableManager = ProcessedTableManager<
     $$GroupInvitesTableUpdateCompanionBuilder,
     (GroupInvite, $$GroupInvitesTableReferences),
     GroupInvite,
-    PrefetchHooks Function({bool groupId, bool invitedByUserId})>;
+    PrefetchHooks Function(
+        {bool groupId, bool invitedByUserId, bool inviteeUserId})>;
 typedef $$AppContextsTableCreateCompanionBuilder = AppContextsCompanion
     Function({
   Value<int> id,

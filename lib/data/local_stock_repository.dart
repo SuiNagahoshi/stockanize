@@ -60,6 +60,10 @@ class LocalStockRepository implements StockRepository {
   Future<void> deleteAccount(String accountId) => _db.deleteAccount(accountId);
 
   @override
+  Stream<List<UserGroup>> watchGroupsForCurrentUser() =>
+      _db.watchGroupsForCurrentUser();
+
+  @override
   Stream<List<UserGroup>> watchGroupsForCurrentAccount() =>
       _db.watchGroupsForCurrentAccount();
 

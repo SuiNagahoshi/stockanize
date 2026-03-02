@@ -358,21 +358,16 @@ extension AccountControlDao on AppDatabase {
     );
   }
 
-  Stream<List<UserGroup>> watchGroupsForCurrentAccount() {
+  Stream<List<UserGroup>> watchGroupsForCurrentUser() {
     return _watchByAppContext((context) {
       final userId = context?.activeUserId;
       if (userId == null) {
-        return Stream.value(const <UserGroup>[]);
-      }
-      final accountId = context?.activeAccountId;
-      if (accountId == null || accountId.isEmpty) {
         return Stream.value(const <UserGroup>[]);
       }
 
       final query = select(userGroups).join([
         innerJoin(groupMembers, groupMembers.groupId.equalsExp(userGroups.id)),
       ])
-        ..where(userGroups.accountId.equals(accountId))
         ..where(groupMembers.userId.equals(userId))
         ..orderBy([OrderingTerm.asc(userGroups.createdAt)]);
 
@@ -380,6 +375,11 @@ extension AccountControlDao on AppDatabase {
         return rows.map((row) => row.readTable(userGroups)).toList();
       });
     });
+  }
+
+  Stream<List<UserGroup>> watchGroupsForCurrentAccount() {
+    // Compatibility shim: group visibility is now scoped by current user.
+    return watchGroupsForCurrentUser();
   }
 
   Future<int> createGroup(String name, {String? description}) async {
@@ -517,6 +517,7 @@ extension AccountControlDao on AppDatabase {
       GroupInvitesCompanion.insert(
         groupId: groupId,
         invitedByUserId: Value(inviter.id),
+        inviteeUserId: Value(invitee.id),
         inviteeUsername: normalized,
         token: token,
         expiresAt: expiresAt,
@@ -533,10 +534,8 @@ extension AccountControlDao on AppDatabase {
 
       final query = select(groupInvites).join([
         innerJoin(userGroups, userGroups.id.equalsExp(groupInvites.groupId)),
-        innerJoin(
-            users, users.username.equalsExp(groupInvites.inviteeUsername)),
       ])
-        ..where(users.id.equals(userId))
+        ..where(groupInvites.inviteeUserId.equals(userId))
         ..where(groupInvites.status.equals('pending'));
 
       return query.watch().map((rows) {
@@ -609,7 +608,11 @@ extension AccountControlDao on AppDatabase {
       throw StateError('この招待は既に処理済みです');
     }
 
-    if (invite.inviteeUsername != user.username) {
+    final targetUserId = invite.inviteeUserId;
+    final isCurrentUserInvite = targetUserId != null
+        ? targetUserId == user.id
+        : invite.inviteeUsername == user.username;
+    if (!isCurrentUserInvite) {
       throw StateError('この招待は現在のユーザ向けではありません');
     }
 
@@ -662,7 +665,11 @@ extension AccountControlDao on AppDatabase {
       throw StateError('招待が存在しません');
     }
 
-    if (invite.inviteeUsername != user.username) {
+    final targetUserId = invite.inviteeUserId;
+    final isCurrentUserInvite = targetUserId != null
+        ? targetUserId == user.id
+        : invite.inviteeUsername == user.username;
+    if (!isCurrentUserInvite) {
       throw StateError('この招待は現在のユーザ向けではありません');
     }
 
@@ -898,6 +905,41 @@ extension AccountControlDao on AppDatabase {
         updatedAt: Value(DateTime.now()),
       ),
     );
+  }
+
+  Future<Map<String, int>> collectIdentityForensics() async {
+    Future<int> count(String table) async {
+      final row = await customSelect(
+        'SELECT COUNT(*) AS c FROM $table',
+      ).getSingle();
+      return row.read<int>('c');
+    }
+
+    final unresolvedInviteRows = await customSelect('''
+      SELECT COUNT(*) AS c
+      FROM group_invites gi
+      LEFT JOIN users u ON u.username = gi.invitee_username
+      WHERE u.id IS NULL
+    ''').getSingle();
+
+    final accountMismatchRows = await customSelect('''
+      SELECT COUNT(*) AS c
+      FROM group_members gm
+      JOIN user_groups ug ON ug.id = gm.group_id
+      LEFT JOIN account_members am
+        ON am.user_id = gm.user_id AND am.account_id = ug.account_id
+      WHERE am.id IS NULL
+    ''').getSingle();
+
+    return {
+      'users': await count('users'),
+      'accounts': await count('accounts'),
+      'account_members': await count('account_members'),
+      'group_members': await count('group_members'),
+      'group_invites': await count('group_invites'),
+      'unresolved_invitee_username': unresolvedInviteRows.read<int>('c'),
+      'group_account_membership_mismatch': accountMismatchRows.read<int>('c'),
+    };
   }
 
   Future<int?> _resolveGroupForLogin({

@@ -21,6 +21,7 @@ abstract class StockRepository {
   Future<void> renameAccount(String accountId, String newName);
   Future<void> deleteAccount(String accountId);
 
+  Stream<List<UserGroup>> watchGroupsForCurrentUser();
   Stream<List<UserGroup>> watchGroupsForCurrentAccount();
   Future<int> createGroup(String name, {String? description});
   Future<void> renameGroup(int groupId, String name);
