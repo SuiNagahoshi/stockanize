@@ -92,7 +92,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
       return '対象グループに参加していないため、この操作は実行できません。';
     }
     if (message.contains('現在のアカウント外の招待です')) {
-      return '現在のアカウント外の招待は操作できません。対象アカウントへ切り替えてから実行してください。';
+      return '招待の操作に失敗しました。画面を更新して、対象の招待をもう一度選択してください。';
     }
     if (message.contains('グループを選択するにはログインが必要です')) {
       return 'グループ情報の更新中です。少し待ってからもう一度お試しください。';
@@ -551,23 +551,37 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('マイページ')),
-      body: FutureBuilder<User?>(
-        future: widget.repository.getCurrentUser(),
-        builder: (context, userSnapshot) {
-          final user = userSnapshot.data;
-          if (user == null) {
+      body: StreamBuilder<AppContext?>(
+        stream: widget.db.watchAppContext(),
+        builder: (context, contextSnapshot) {
+          final activeUserId = contextSnapshot.data?.activeUserId;
+          if (activeUserId == null) {
             return _buildLoggedOut();
           }
 
-          return StreamBuilder<List<Account>>(
-            stream: widget.repository.watchAccounts(),
-            builder: (context, accountSnapshot) {
-              final accounts = accountSnapshot.data ?? const <Account>[];
-              return StreamBuilder<List<UserGroup>>(
-                stream: widget.repository.watchGroupsForCurrentAccount(),
-                builder: (context, groupSnapshot) {
-                  final groups = groupSnapshot.data ?? const <UserGroup>[];
-                  return _buildLoggedIn(user, accounts, groups);
+          return StreamBuilder<List<User>>(
+            stream: widget.repository.watchUsers(),
+            builder: (context, usersSnapshot) {
+              final users = usersSnapshot.data ?? const <User>[];
+              final user = users.cast<User?>().firstWhere(
+                    (u) => u?.id == activeUserId,
+                    orElse: () => null,
+                  );
+              if (user == null) {
+                return _buildLoggedOut();
+              }
+
+              return StreamBuilder<List<Account>>(
+                stream: widget.repository.watchAccounts(),
+                builder: (context, accountSnapshot) {
+                  final accounts = accountSnapshot.data ?? const <Account>[];
+                  return StreamBuilder<List<UserGroup>>(
+                    stream: widget.repository.watchGroupsForCurrentAccount(),
+                    builder: (context, groupSnapshot) {
+                      final groups = groupSnapshot.data ?? const <UserGroup>[];
+                      return _buildLoggedIn(user, accounts, groups);
+                    },
+                  );
                 },
               );
             },
@@ -831,7 +845,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                         ),
                         const SizedBox(height: 4),
                         const Text(
-                          '※現在のアクティブアカウント内の招待のみ表示しています',
+                          '※受信は現在のログインユーザ宛、送信は現在のアクティブアカウントのみ表示しています',
                           style: TextStyle(fontSize: 12, color: Colors.black54),
                         ),
                         if (received.isNotEmpty) ...[

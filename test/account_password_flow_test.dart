@@ -206,7 +206,8 @@ void main() {
       expect(db.currentGroupId, groupB);
     });
 
-    test('accept and decline reject invites outside current account', () async {
+    test('pending invite is visible and can be handled across account switch',
+        () async {
       await db.registerUser(username: 'charlie', password: 'charlie-pass-123');
       await db.logout();
       await db.login(username: 'charlie', password: 'charlie-pass-123');
@@ -224,14 +225,23 @@ void main() {
       await db.logout();
       await db.login(username: 'alice', password: 'alice-pass-123');
 
-      expect(
-        () => db.acceptInvite(inviteA),
-        throwsA(predicate((e) => e.toString().contains('現在のアカウント外の招待です'))),
-      );
-      expect(
-        () => db.declineInvite(inviteB),
-        throwsA(predicate((e) => e.toString().contains('現在のアカウント外の招待です'))),
-      );
+      final pending = await db.watchPendingInvitesForCurrentUser().first;
+      expect(pending.map((e) => e.id), containsAll([inviteA, inviteB]));
+
+      await db.acceptInvite(inviteA);
+      final accountA = await (db.select(db.userGroups)
+            ..where((g) => g.id.equals(groupA)))
+          .map((row) => row.accountId)
+          .getSingle();
+      expect(db.currentAccountId, accountA);
+      expect(db.currentGroupId, groupA);
+
+      await db.declineInvite(inviteB);
+      final inviteBStatus = await (db.select(db.groupInvites)
+            ..where((i) => i.id.equals(inviteB)))
+          .map((row) => row.status)
+          .getSingle();
+      expect(inviteBStatus, 'declined');
     });
   });
 }

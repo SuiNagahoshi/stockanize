@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:drift/drift.dart';
@@ -181,20 +182,22 @@ extension AccountControlDao on AppDatabase {
   }
 
   Stream<List<Account>> watchAccounts() {
-    final userId = currentUserId;
-    if (userId == null) {
-      return Stream.value(const <Account>[]);
-    }
+    return _watchByAppContext(() {
+      final userId = currentUserId;
+      if (userId == null) {
+        return Stream.value(const <Account>[]);
+      }
 
-    final query = select(accounts).join([
-      innerJoin(
-          accountMembers, accountMembers.accountId.equalsExp(accounts.id)),
-    ])
-      ..where(accountMembers.userId.equals(userId))
-      ..orderBy([OrderingTerm.asc(accounts.createdAt)]);
+      final query = select(accounts).join([
+        innerJoin(
+            accountMembers, accountMembers.accountId.equalsExp(accounts.id)),
+      ])
+        ..where(accountMembers.userId.equals(userId))
+        ..orderBy([OrderingTerm.asc(accounts.createdAt)]);
 
-    return query.watch().map((rows) {
-      return rows.map((row) => row.readTable(accounts)).toList();
+      return query.watch().map((rows) {
+        return rows.map((row) => row.readTable(accounts)).toList();
+      });
     });
   }
 
@@ -347,20 +350,26 @@ extension AccountControlDao on AppDatabase {
   }
 
   Stream<List<UserGroup>> watchGroupsForCurrentAccount() {
-    final userId = currentUserId;
-    if (userId == null) {
-      return Stream.value(const <UserGroup>[]);
-    }
+    return _watchByAppContext(() {
+      final userId = currentUserId;
+      if (userId == null) {
+        return Stream.value(const <UserGroup>[]);
+      }
+      final accountId = currentAccountId;
+      if (accountId.isEmpty) {
+        return Stream.value(const <UserGroup>[]);
+      }
 
-    final query = select(userGroups).join([
-      innerJoin(groupMembers, groupMembers.groupId.equalsExp(userGroups.id)),
-    ])
-      ..where(userGroups.accountId.equals(currentAccountId))
-      ..where(groupMembers.userId.equals(userId))
-      ..orderBy([OrderingTerm.asc(userGroups.createdAt)]);
+      final query = select(userGroups).join([
+        innerJoin(groupMembers, groupMembers.groupId.equalsExp(userGroups.id)),
+      ])
+        ..where(userGroups.accountId.equals(accountId))
+        ..where(groupMembers.userId.equals(userId))
+        ..orderBy([OrderingTerm.asc(userGroups.createdAt)]);
 
-    return query.watch().map((rows) {
-      return rows.map((row) => row.readTable(userGroups)).toList();
+      return query.watch().map((rows) {
+        return rows.map((row) => row.readTable(userGroups)).toList();
+      });
     });
   }
 
@@ -446,26 +455,33 @@ extension AccountControlDao on AppDatabase {
   }
 
   Stream<List<GroupMemberView>> watchGroupMembers(int groupId) {
-    final query = select(groupMembers).join([
-      innerJoin(users, users.id.equalsExp(groupMembers.userId)),
-      innerJoin(userGroups, userGroups.id.equalsExp(groupMembers.groupId)),
-    ])
-      ..where(groupMembers.groupId.equals(groupId))
-      ..where(userGroups.accountId.equals(currentAccountId));
+    return _watchByAppContext(() {
+      final accountId = currentAccountId;
+      if (accountId.isEmpty) {
+        return Stream.value(const <GroupMemberView>[]);
+      }
 
-    return query.watch().map((rows) {
-      return rows.map((row) {
-        final membership = row.readTable(groupMembers);
-        final user = row.readTable(users);
-        return GroupMemberView(
-          membershipId: membership.id,
-          groupId: membership.groupId,
-          userId: user.id,
-          username: user.username,
-          role: membership.role,
-        );
-      }).toList()
-        ..sort((a, b) => a.username.compareTo(b.username));
+      final query = select(groupMembers).join([
+        innerJoin(users, users.id.equalsExp(groupMembers.userId)),
+        innerJoin(userGroups, userGroups.id.equalsExp(groupMembers.groupId)),
+      ])
+        ..where(groupMembers.groupId.equals(groupId))
+        ..where(userGroups.accountId.equals(accountId));
+
+      return query.watch().map((rows) {
+        return rows.map((row) {
+          final membership = row.readTable(groupMembers);
+          final user = row.readTable(users);
+          return GroupMemberView(
+            membershipId: membership.id,
+            groupId: membership.groupId,
+            userId: user.id,
+            username: user.username,
+            role: membership.role,
+          );
+        }).toList()
+          ..sort((a, b) => a.username.compareTo(b.username));
+      });
     });
   }
 
@@ -493,8 +509,8 @@ extension AccountControlDao on AppDatabase {
     );
   }
 
-  Stream<List<GroupInviteView>> watchPendingInvitesForCurrentUser() async* {
-    yield* watchAppContext().asyncExpand((_) {
+  Stream<List<GroupInviteView>> watchPendingInvitesForCurrentUser() {
+    return _watchByAppContext(() {
       final userId = currentUserId;
       if (userId == null) {
         return Stream.value(const <GroupInviteView>[]);
@@ -506,7 +522,6 @@ extension AccountControlDao on AppDatabase {
             users, users.username.equalsExp(groupInvites.inviteeUsername)),
       ])
         ..where(users.id.equals(userId))
-        ..where(userGroups.accountId.equals(currentAccountId))
         ..where(groupInvites.status.equals('pending'));
 
       return query.watch().map((rows) {
@@ -528,10 +543,14 @@ extension AccountControlDao on AppDatabase {
     });
   }
 
-  Stream<List<GroupInviteView>> watchSentInvitesForCurrentUser() async* {
-    yield* watchAppContext().asyncExpand((_) {
+  Stream<List<GroupInviteView>> watchSentInvitesForCurrentUser() {
+    return _watchByAppContext(() {
       final userId = currentUserId;
       if (userId == null) {
+        return Stream.value(const <GroupInviteView>[]);
+      }
+      final accountId = currentAccountId;
+      if (accountId.isEmpty) {
         return Stream.value(const <GroupInviteView>[]);
       }
 
@@ -539,7 +558,7 @@ extension AccountControlDao on AppDatabase {
         innerJoin(userGroups, userGroups.id.equalsExp(groupInvites.groupId)),
       ])
         ..where(groupInvites.invitedByUserId.equals(userId))
-        ..where(userGroups.accountId.equals(currentAccountId))
+        ..where(userGroups.accountId.equals(accountId))
         ..where(groupInvites.status.equals('pending'));
 
       return query.watch().map((rows) {
@@ -589,9 +608,6 @@ extension AccountControlDao on AppDatabase {
     if (group == null) {
       throw StateError('招待先グループが存在しません');
     }
-    if (group.accountId != currentAccountId) {
-      throw StateError('現在のアカウント外の招待です');
-    }
 
     await transaction(() async {
       await _ensureAccountMemberRow(
@@ -639,9 +655,6 @@ extension AccountControlDao on AppDatabase {
         .getSingleOrNull();
     if (group == null) {
       throw StateError('招待先グループが存在しません');
-    }
-    if (group.accountId != currentAccountId) {
-      throw StateError('現在のアカウント外の招待です');
     }
 
     await (update(groupInvites)..where((i) => i.id.equals(inviteId))).write(
@@ -737,6 +750,34 @@ extension AccountControlDao on AppDatabase {
     return message.contains('UNIQUE constraint failed: accounts.name') ||
         message.contains('UNIQUE constraint failed') &&
             message.contains('accounts.name');
+  }
+
+  Stream<T> _watchByAppContext<T>(Stream<T> Function() watchFactory) {
+    return Stream.multi((controller) {
+      StreamSubscription<T>? dataSub;
+      StreamSubscription<AppContext?>? contextSub;
+
+      Future<void> bind() async {
+        await dataSub?.cancel();
+        dataSub = watchFactory().listen(
+          controller.add,
+          onError: controller.addError,
+        );
+      }
+
+      bind();
+      contextSub = watchAppContext().listen(
+        (_) {
+          bind();
+        },
+        onError: controller.addError,
+      );
+
+      controller.onCancel = () async {
+        await dataSub?.cancel();
+        await contextSub?.cancel();
+      };
+    });
   }
 
   Future<void> _ensureGroupMember(int groupId) async {
