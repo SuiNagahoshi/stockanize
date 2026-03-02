@@ -578,8 +578,22 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                   return StreamBuilder<List<UserGroup>>(
                     stream: widget.repository.watchGroupsForCurrentAccount(),
                     builder: (context, groupSnapshot) {
+                      if (groupSnapshot.hasError) {
+                        return _buildLoggedIn(
+                          user,
+                          accounts,
+                          const <UserGroup>[],
+                          groupLoadError: _friendlyErrorMessage(
+                            groupSnapshot.error!,
+                          ),
+                        );
+                      }
                       final groups = groupSnapshot.data ?? const <UserGroup>[];
-                      return _buildLoggedIn(user, accounts, groups);
+                      return _buildLoggedIn(
+                        user,
+                        accounts,
+                        groups,
+                      );
                     },
                   );
                 },
@@ -673,7 +687,11 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
   }
 
   Widget _buildLoggedIn(
-      User user, List<Account> accounts, List<UserGroup> groups) {
+    User user,
+    List<Account> accounts,
+    List<UserGroup> groups, {
+    String? groupLoadError,
+  }) {
     final activeAccount = accounts.cast<Account?>().firstWhere(
         (a) => a?.id == widget.db.currentAccountId,
         orElse: () => null);
@@ -764,6 +782,13 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                   ],
                 ),
                 const SizedBox(height: 10),
+                if (groupLoadError != null) ...[
+                  Text(
+                    'グループ取得エラー: $groupLoadError',
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                  const SizedBox(height: 10),
+                ],
                 if (groups.isEmpty)
                   const Text('参加中のグループはありません')
                 else

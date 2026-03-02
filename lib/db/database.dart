@@ -16,6 +16,7 @@ part 'database.g.dart';
   GroupMembers,
   GroupInvites,
   AppContexts,
+  UserLastScopes,
   Parts,
   PartsImages,
 ])
@@ -37,7 +38,7 @@ class AppDatabase extends _$AppDatabase {
   int? get currentUserId => _activeUserId;
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -101,6 +102,12 @@ class AppDatabase extends _$AppDatabase {
               if (!await _columnExists('accounts', 'password_set_at')) {
                 await m.addColumn(accounts, accounts.passwordSetAt);
               }
+            }
+          }
+
+          if (from < 6) {
+            if (!await _tableExists('user_last_scopes')) {
+              await m.createTable(userLastScopes);
             }
           }
         },

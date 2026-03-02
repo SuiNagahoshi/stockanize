@@ -74,6 +74,7 @@ extension AccountControlDao on AppDatabase {
       groupId: null,
       userId: createdUser.id,
     );
+    await _setLastAccountForUser(createdUser.id, initialAccountId);
     return userId;
   }
 
@@ -112,6 +113,7 @@ extension AccountControlDao on AppDatabase {
       groupId: groupId,
       userId: user.id,
     );
+    await _setLastAccountForUser(user.id, accountId);
   }
 
   Future<void> logout() async {
@@ -144,6 +146,7 @@ extension AccountControlDao on AppDatabase {
     }
 
     await setActiveAccount(accountId, userId: user.id);
+    await _setLastAccountForUser(user.id, accountId);
   }
 
   Future<void> changePassword({
@@ -267,6 +270,7 @@ extension AccountControlDao on AppDatabase {
     );
 
     await setActiveScope(accountId: id, groupId: null, userId: user.id);
+    await _setLastAccountForUser(user.id, id);
     return id;
   }
 
@@ -645,6 +649,7 @@ extension AccountControlDao on AppDatabase {
       groupId: group.id,
       userId: user.id,
     );
+    await _setLastAccountForUser(user.id, group.accountId);
   }
 
   Future<void> declineInvite(int inviteId) async {
@@ -848,6 +853,17 @@ extension AccountControlDao on AppDatabase {
   }
 
   Future<String> _resolveLoginAccountForUser(User user) async {
+    final lastAccountId = await _getLastAccountForUser(user.id);
+    if (lastAccountId != null) {
+      final lastMembership = await (select(accountMembers)
+            ..where((m) => m.accountId.equals(lastAccountId))
+            ..where((m) => m.userId.equals(user.id)))
+          .getSingleOrNull();
+      if (lastMembership != null) {
+        return lastAccountId;
+      }
+    }
+
     final activeMembership = await (select(accountMembers)
           ..where((m) => m.accountId.equals(currentAccountId))
           ..where((m) => m.userId.equals(user.id)))
@@ -865,6 +881,23 @@ extension AccountControlDao on AppDatabase {
     }
 
     return _createInitialAccountForUser(user);
+  }
+
+  Future<String?> _getLastAccountForUser(int userId) async {
+    final row = await (select(userLastScopes)
+          ..where((t) => t.userId.equals(userId)))
+        .getSingleOrNull();
+    return row?.lastAccountId;
+  }
+
+  Future<void> _setLastAccountForUser(int userId, String accountId) async {
+    await into(userLastScopes).insertOnConflictUpdate(
+      UserLastScopesCompanion(
+        userId: Value(userId),
+        lastAccountId: Value(accountId),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
   }
 
   Future<int?> _resolveGroupForLogin({

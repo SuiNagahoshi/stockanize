@@ -317,5 +317,72 @@ void main() {
       final pending = await db.watchSentInvitesForCurrentUser().first;
       expect(pending, isEmpty);
     });
+
+    test('login restores last account per user after other user changes scope',
+        () async {
+      await db.registerUser(username: 'bob', password: 'bob-pass-123');
+      await db.logout();
+      await db.login(username: 'bob', password: 'bob-pass-123');
+
+      await db.createAccount('bob-a', accountPassword: 'bob-a-pass');
+      final bobB =
+          await db.createAccount('bob-b', accountPassword: 'bob-b-pass');
+      await db.switchActiveAccount(
+        accountId: bobB,
+        accountPassword: 'bob-b-pass',
+      );
+      expect(db.currentAccountId, bobB);
+
+      await db.logout();
+      await db.login(username: 'alice', password: 'alice-pass-123');
+      final aliceAlt = await db.createAccount('alice-alt',
+          accountPassword: 'alice-alt-pass');
+      expect(db.currentAccountId, aliceAlt);
+
+      await db.logout();
+      await db.login(username: 'bob', password: 'bob-pass-123');
+      expect(db.currentAccountId, bobB);
+    });
+
+    test('login falls back to oldest membership when last account is invalid',
+        () async {
+      await db.registerUser(username: 'bob', password: 'bob-pass-123');
+      await db.logout();
+      await db.login(username: 'bob', password: 'bob-pass-123');
+
+      final bobB = await db.createAccount('bob-fallback-b',
+          accountPassword: 'bob-fallback-b-pass');
+      await db.switchActiveAccount(
+        accountId: bobB,
+        accountPassword: 'bob-fallback-b-pass',
+      );
+      expect(db.currentAccountId, bobB);
+      await db.addUserToAccount(accountId: bobB, username: 'alice');
+
+      final bobId = await (db.select(db.users)
+            ..where((u) => u.username.equals('bob')))
+          .map((u) => u.id)
+          .getSingle();
+
+      await (db.delete(db.accountMembers)
+            ..where((m) => m.accountId.equals(bobB))
+            ..where((m) => m.userId.equals(bobId)))
+          .go();
+
+      final memberships = await (db.select(db.accountMembers)
+            ..where((m) => m.userId.equals(bobId)))
+          .get();
+      memberships.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      final expectedFallback = memberships.first.accountId;
+
+      await db.logout();
+      await db.login(username: 'bob', password: 'bob-pass-123');
+      expect(db.currentAccountId, expectedFallback);
+
+      final lastScope = await (db.select(db.userLastScopes)
+            ..where((s) => s.userId.equals(bobId)))
+          .getSingleOrNull();
+      expect(lastScope?.lastAccountId, expectedFallback);
+    });
   });
 }

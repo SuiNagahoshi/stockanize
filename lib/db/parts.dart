@@ -94,6 +94,17 @@ class AppContexts extends Table {
   Set<Column<Object>>? get primaryKey => {id};
 }
 
+class UserLastScopes extends Table {
+  IntColumn get userId =>
+      integer().references(Users, #id, onDelete: KeyAction.cascade)();
+  TextColumn get lastAccountId =>
+      text().references(Accounts, #id, onDelete: KeyAction.cascade)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column<Object>>? get primaryKey => {userId};
+}
+
 class Parts extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get accountId => text()

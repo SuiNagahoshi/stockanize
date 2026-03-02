@@ -2298,6 +2298,234 @@ class AppContextsCompanion extends UpdateCompanion<AppContext> {
   }
 }
 
+class $UserLastScopesTable extends UserLastScopes
+    with TableInfo<$UserLastScopesTable, UserLastScope> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $UserLastScopesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<int> userId = GeneratedColumn<int>(
+      'user_id', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'REFERENCES users (id) ON DELETE CASCADE'));
+  static const VerificationMeta _lastAccountIdMeta =
+      const VerificationMeta('lastAccountId');
+  @override
+  late final GeneratedColumn<String> lastAccountId = GeneratedColumn<String>(
+      'last_account_id', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: true,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'REFERENCES accounts (id) ON DELETE CASCADE'));
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns => [userId, lastAccountId, updatedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'user_last_scopes';
+  @override
+  VerificationContext validateIntegrity(Insertable<UserLastScope> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('user_id')) {
+      context.handle(_userIdMeta,
+          userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta));
+    }
+    if (data.containsKey('last_account_id')) {
+      context.handle(
+          _lastAccountIdMeta,
+          lastAccountId.isAcceptableOrUnknown(
+              data['last_account_id']!, _lastAccountIdMeta));
+    } else if (isInserting) {
+      context.missing(_lastAccountIdMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {userId};
+  @override
+  UserLastScope map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return UserLastScope(
+      userId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}user_id'])!,
+      lastAccountId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}last_account_id'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $UserLastScopesTable createAlias(String alias) {
+    return $UserLastScopesTable(attachedDatabase, alias);
+  }
+}
+
+class UserLastScope extends DataClass implements Insertable<UserLastScope> {
+  final int userId;
+  final String lastAccountId;
+  final DateTime updatedAt;
+  const UserLastScope(
+      {required this.userId,
+      required this.lastAccountId,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['user_id'] = Variable<int>(userId);
+    map['last_account_id'] = Variable<String>(lastAccountId);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  UserLastScopesCompanion toCompanion(bool nullToAbsent) {
+    return UserLastScopesCompanion(
+      userId: Value(userId),
+      lastAccountId: Value(lastAccountId),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory UserLastScope.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return UserLastScope(
+      userId: serializer.fromJson<int>(json['userId']),
+      lastAccountId: serializer.fromJson<String>(json['lastAccountId']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'userId': serializer.toJson<int>(userId),
+      'lastAccountId': serializer.toJson<String>(lastAccountId),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  UserLastScope copyWith(
+          {int? userId, String? lastAccountId, DateTime? updatedAt}) =>
+      UserLastScope(
+        userId: userId ?? this.userId,
+        lastAccountId: lastAccountId ?? this.lastAccountId,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  UserLastScope copyWithCompanion(UserLastScopesCompanion data) {
+    return UserLastScope(
+      userId: data.userId.present ? data.userId.value : this.userId,
+      lastAccountId: data.lastAccountId.present
+          ? data.lastAccountId.value
+          : this.lastAccountId,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('UserLastScope(')
+          ..write('userId: $userId, ')
+          ..write('lastAccountId: $lastAccountId, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(userId, lastAccountId, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is UserLastScope &&
+          other.userId == this.userId &&
+          other.lastAccountId == this.lastAccountId &&
+          other.updatedAt == this.updatedAt);
+}
+
+class UserLastScopesCompanion extends UpdateCompanion<UserLastScope> {
+  final Value<int> userId;
+  final Value<String> lastAccountId;
+  final Value<DateTime> updatedAt;
+  const UserLastScopesCompanion({
+    this.userId = const Value.absent(),
+    this.lastAccountId = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  UserLastScopesCompanion.insert({
+    this.userId = const Value.absent(),
+    required String lastAccountId,
+    this.updatedAt = const Value.absent(),
+  }) : lastAccountId = Value(lastAccountId);
+  static Insertable<UserLastScope> custom({
+    Expression<int>? userId,
+    Expression<String>? lastAccountId,
+    Expression<DateTime>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (userId != null) 'user_id': userId,
+      if (lastAccountId != null) 'last_account_id': lastAccountId,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  UserLastScopesCompanion copyWith(
+      {Value<int>? userId,
+      Value<String>? lastAccountId,
+      Value<DateTime>? updatedAt}) {
+    return UserLastScopesCompanion(
+      userId: userId ?? this.userId,
+      lastAccountId: lastAccountId ?? this.lastAccountId,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (userId.present) {
+      map['user_id'] = Variable<int>(userId.value);
+    }
+    if (lastAccountId.present) {
+      map['last_account_id'] = Variable<String>(lastAccountId.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('UserLastScopesCompanion(')
+          ..write('userId: $userId, ')
+          ..write('lastAccountId: $lastAccountId, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $PartsTable extends Parts with TableInfo<$PartsTable, Part> {
   @override
   final GeneratedDatabase attachedDatabase;
@@ -3153,6 +3381,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $GroupMembersTable groupMembers = $GroupMembersTable(this);
   late final $GroupInvitesTable groupInvites = $GroupInvitesTable(this);
   late final $AppContextsTable appContexts = $AppContextsTable(this);
+  late final $UserLastScopesTable userLastScopes = $UserLastScopesTable(this);
   late final $PartsTable parts = $PartsTable(this);
   late final $PartsImagesTable partsImages = $PartsImagesTable(this);
   @override
@@ -3167,6 +3396,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         groupMembers,
         groupInvites,
         appContexts,
+        userLastScopes,
         parts,
         partsImages
       ];
@@ -3234,6 +3464,20 @@ abstract class _$AppDatabase extends GeneratedDatabase {
                 limitUpdateKind: UpdateKind.delete),
             result: [
               TableUpdate('app_contexts', kind: UpdateKind.update),
+            ],
+          ),
+          WritePropagation(
+            on: TableUpdateQuery.onTableName('users',
+                limitUpdateKind: UpdateKind.delete),
+            result: [
+              TableUpdate('user_last_scopes', kind: UpdateKind.delete),
+            ],
+          ),
+          WritePropagation(
+            on: TableUpdateQuery.onTableName('accounts',
+                limitUpdateKind: UpdateKind.delete),
+            result: [
+              TableUpdate('user_last_scopes', kind: UpdateKind.delete),
             ],
           ),
           WritePropagation(
@@ -3339,6 +3583,21 @@ final class $$UsersTableReferences
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: cache));
   }
+
+  static MultiTypedResultKey<$UserLastScopesTable, List<UserLastScope>>
+      _userLastScopesRefsTable(_$AppDatabase db) =>
+          MultiTypedResultKey.fromTable(db.userLastScopes,
+              aliasName:
+                  $_aliasNameGenerator(db.users.id, db.userLastScopes.userId));
+
+  $$UserLastScopesTableProcessedTableManager get userLastScopesRefs {
+    final manager = $$UserLastScopesTableTableManager($_db, $_db.userLastScopes)
+        .filter((f) => f.userId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_userLastScopesRefsTable($_db));
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: cache));
+  }
 }
 
 class $$UsersTableFilterComposer extends Composer<_$AppDatabase, $UsersTable> {
@@ -3440,6 +3699,27 @@ class $$UsersTableFilterComposer extends Composer<_$AppDatabase, $UsersTable> {
             $$AppContextsTableFilterComposer(
               $db: $db,
               $table: $db.appContexts,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+
+  Expression<bool> userLastScopesRefs(
+      Expression<bool> Function($$UserLastScopesTableFilterComposer f) f) {
+    final $$UserLastScopesTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.userLastScopes,
+        getReferencedColumn: (t) => t.userId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$UserLastScopesTableFilterComposer(
+              $db: $db,
+              $table: $db.userLastScopes,
               $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
               joinBuilder: joinBuilder,
               $removeJoinBuilderFromRootComposer:
@@ -3583,6 +3863,27 @@ class $$UsersTableAnnotationComposer
             ));
     return f(composer);
   }
+
+  Expression<T> userLastScopesRefs<T extends Object>(
+      Expression<T> Function($$UserLastScopesTableAnnotationComposer a) f) {
+    final $$UserLastScopesTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.userLastScopes,
+        getReferencedColumn: (t) => t.userId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$UserLastScopesTableAnnotationComposer(
+              $db: $db,
+              $table: $db.userLastScopes,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
 }
 
 class $$UsersTableTableManager extends RootTableManager<
@@ -3600,7 +3901,8 @@ class $$UsersTableTableManager extends RootTableManager<
         {bool accountMembersRefs,
         bool groupMembersRefs,
         bool groupInvitesRefs,
-        bool appContextsRefs})> {
+        bool appContextsRefs,
+        bool userLastScopesRefs})> {
   $$UsersTableTableManager(_$AppDatabase db, $UsersTable table)
       : super(TableManagerState(
           db: db,
@@ -3647,14 +3949,16 @@ class $$UsersTableTableManager extends RootTableManager<
               {accountMembersRefs = false,
               groupMembersRefs = false,
               groupInvitesRefs = false,
-              appContextsRefs = false}) {
+              appContextsRefs = false,
+              userLastScopesRefs = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [
                 if (accountMembersRefs) db.accountMembers,
                 if (groupMembersRefs) db.groupMembers,
                 if (groupInvitesRefs) db.groupInvites,
-                if (appContextsRefs) db.appContexts
+                if (appContextsRefs) db.appContexts,
+                if (userLastScopesRefs) db.userLastScopes
               ],
               addJoins: null,
               getPrefetchedDataCallback: (items) async {
@@ -3706,6 +4010,18 @@ class $$UsersTableTableManager extends RootTableManager<
                         referencedItemsForCurrentItem:
                             (item, referencedItems) => referencedItems
                                 .where((e) => e.activeUserId == item.id),
+                        typedResults: items),
+                  if (userLastScopesRefs)
+                    await $_getPrefetchedData<User, $UsersTable, UserLastScope>(
+                        currentTable: table,
+                        referencedTable:
+                            $$UsersTableReferences._userLastScopesRefsTable(db),
+                        managerFromTypedResult: (p0) =>
+                            $$UsersTableReferences(db, table, p0)
+                                .userLastScopesRefs,
+                        referencedItemsForCurrentItem: (item,
+                                referencedItems) =>
+                            referencedItems.where((e) => e.userId == item.id),
                         typedResults: items)
                 ];
               },
@@ -3729,7 +4045,8 @@ typedef $$UsersTableProcessedTableManager = ProcessedTableManager<
         {bool accountMembersRefs,
         bool groupMembersRefs,
         bool groupInvitesRefs,
-        bool appContextsRefs})>;
+        bool appContextsRefs,
+        bool userLastScopesRefs})>;
 typedef $$AccountsTableCreateCompanionBuilder = AccountsCompanion Function({
   required String id,
   required String name,
@@ -3795,6 +4112,22 @@ final class $$AccountsTableReferences
             (f) => f.activeAccountId.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_appContextsRefsTable($_db));
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: cache));
+  }
+
+  static MultiTypedResultKey<$UserLastScopesTable, List<UserLastScope>>
+      _userLastScopesRefsTable(_$AppDatabase db) =>
+          MultiTypedResultKey.fromTable(db.userLastScopes,
+              aliasName: $_aliasNameGenerator(
+                  db.accounts.id, db.userLastScopes.lastAccountId));
+
+  $$UserLastScopesTableProcessedTableManager get userLastScopesRefs {
+    final manager = $$UserLastScopesTableTableManager($_db, $_db.userLastScopes)
+        .filter(
+            (f) => f.lastAccountId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_userLastScopesRefsTable($_db));
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: cache));
   }
@@ -3896,6 +4229,27 @@ class $$AccountsTableFilterComposer
             $$AppContextsTableFilterComposer(
               $db: $db,
               $table: $db.appContexts,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+
+  Expression<bool> userLastScopesRefs(
+      Expression<bool> Function($$UserLastScopesTableFilterComposer f) f) {
+    final $$UserLastScopesTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.userLastScopes,
+        getReferencedColumn: (t) => t.lastAccountId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$UserLastScopesTableFilterComposer(
+              $db: $db,
+              $table: $db.userLastScopes,
               $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
               joinBuilder: joinBuilder,
               $removeJoinBuilderFromRootComposer:
@@ -4047,6 +4401,27 @@ class $$AccountsTableAnnotationComposer
     return f(composer);
   }
 
+  Expression<T> userLastScopesRefs<T extends Object>(
+      Expression<T> Function($$UserLastScopesTableAnnotationComposer a) f) {
+    final $$UserLastScopesTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.userLastScopes,
+        getReferencedColumn: (t) => t.lastAccountId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$UserLastScopesTableAnnotationComposer(
+              $db: $db,
+              $table: $db.userLastScopes,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+
   Expression<T> partsRefs<T extends Object>(
       Expression<T> Function($$PartsTableAnnotationComposer a) f) {
     final $$PartsTableAnnotationComposer composer = $composerBuilder(
@@ -4084,6 +4459,7 @@ class $$AccountsTableTableManager extends RootTableManager<
         {bool accountMembersRefs,
         bool userGroupsRefs,
         bool appContextsRefs,
+        bool userLastScopesRefs,
         bool partsRefs})> {
   $$AccountsTableTableManager(_$AppDatabase db, $AccountsTable table)
       : super(TableManagerState(
@@ -4139,6 +4515,7 @@ class $$AccountsTableTableManager extends RootTableManager<
               {accountMembersRefs = false,
               userGroupsRefs = false,
               appContextsRefs = false,
+              userLastScopesRefs = false,
               partsRefs = false}) {
             return PrefetchHooks(
               db: db,
@@ -4146,6 +4523,7 @@ class $$AccountsTableTableManager extends RootTableManager<
                 if (accountMembersRefs) db.accountMembers,
                 if (userGroupsRefs) db.userGroups,
                 if (appContextsRefs) db.appContexts,
+                if (userLastScopesRefs) db.userLastScopes,
                 if (partsRefs) db.parts
               ],
               addJoins: null,
@@ -4190,6 +4568,19 @@ class $$AccountsTableTableManager extends RootTableManager<
                             (item, referencedItems) => referencedItems
                                 .where((e) => e.activeAccountId == item.id),
                         typedResults: items),
+                  if (userLastScopesRefs)
+                    await $_getPrefetchedData<Account, $AccountsTable,
+                            UserLastScope>(
+                        currentTable: table,
+                        referencedTable: $$AccountsTableReferences
+                            ._userLastScopesRefsTable(db),
+                        managerFromTypedResult: (p0) =>
+                            $$AccountsTableReferences(db, table, p0)
+                                .userLastScopesRefs,
+                        referencedItemsForCurrentItem:
+                            (item, referencedItems) => referencedItems
+                                .where((e) => e.lastAccountId == item.id),
+                        typedResults: items),
                   if (partsRefs)
                     await $_getPrefetchedData<Account, $AccountsTable, Part>(
                         currentTable: table,
@@ -4223,6 +4614,7 @@ typedef $$AccountsTableProcessedTableManager = ProcessedTableManager<
         {bool accountMembersRefs,
         bool userGroupsRefs,
         bool appContextsRefs,
+        bool userLastScopesRefs,
         bool partsRefs})>;
 typedef $$AccountMembersTableCreateCompanionBuilder = AccountMembersCompanion
     Function({
@@ -6286,6 +6678,323 @@ typedef $$AppContextsTableProcessedTableManager = ProcessedTableManager<
     AppContext,
     PrefetchHooks Function(
         {bool activeAccountId, bool activeGroupId, bool activeUserId})>;
+typedef $$UserLastScopesTableCreateCompanionBuilder = UserLastScopesCompanion
+    Function({
+  Value<int> userId,
+  required String lastAccountId,
+  Value<DateTime> updatedAt,
+});
+typedef $$UserLastScopesTableUpdateCompanionBuilder = UserLastScopesCompanion
+    Function({
+  Value<int> userId,
+  Value<String> lastAccountId,
+  Value<DateTime> updatedAt,
+});
+
+final class $$UserLastScopesTableReferences
+    extends BaseReferences<_$AppDatabase, $UserLastScopesTable, UserLastScope> {
+  $$UserLastScopesTableReferences(
+      super.$_db, super.$_table, super.$_typedResult);
+
+  static $UsersTable _userIdTable(_$AppDatabase db) => db.users
+      .createAlias($_aliasNameGenerator(db.userLastScopes.userId, db.users.id));
+
+  $$UsersTableProcessedTableManager get userId {
+    final $_column = $_itemColumn<int>('user_id')!;
+
+    final manager = $$UsersTableTableManager($_db, $_db.users)
+        .filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_userIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: [item]));
+  }
+
+  static $AccountsTable _lastAccountIdTable(_$AppDatabase db) =>
+      db.accounts.createAlias($_aliasNameGenerator(
+          db.userLastScopes.lastAccountId, db.accounts.id));
+
+  $$AccountsTableProcessedTableManager get lastAccountId {
+    final $_column = $_itemColumn<String>('last_account_id')!;
+
+    final manager = $$AccountsTableTableManager($_db, $_db.accounts)
+        .filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_lastAccountIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: [item]));
+  }
+}
+
+class $$UserLastScopesTableFilterComposer
+    extends Composer<_$AppDatabase, $UserLastScopesTable> {
+  $$UserLastScopesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+
+  $$UsersTableFilterComposer get userId {
+    final $$UsersTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.userId,
+        referencedTable: $db.users,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$UsersTableFilterComposer(
+              $db: $db,
+              $table: $db.users,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+
+  $$AccountsTableFilterComposer get lastAccountId {
+    final $$AccountsTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.lastAccountId,
+        referencedTable: $db.accounts,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$AccountsTableFilterComposer(
+              $db: $db,
+              $table: $db.accounts,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$UserLastScopesTableOrderingComposer
+    extends Composer<_$AppDatabase, $UserLastScopesTable> {
+  $$UserLastScopesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+
+  $$UsersTableOrderingComposer get userId {
+    final $$UsersTableOrderingComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.userId,
+        referencedTable: $db.users,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$UsersTableOrderingComposer(
+              $db: $db,
+              $table: $db.users,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+
+  $$AccountsTableOrderingComposer get lastAccountId {
+    final $$AccountsTableOrderingComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.lastAccountId,
+        referencedTable: $db.accounts,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$AccountsTableOrderingComposer(
+              $db: $db,
+              $table: $db.accounts,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$UserLastScopesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $UserLastScopesTable> {
+  $$UserLastScopesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$UsersTableAnnotationComposer get userId {
+    final $$UsersTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.userId,
+        referencedTable: $db.users,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$UsersTableAnnotationComposer(
+              $db: $db,
+              $table: $db.users,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+
+  $$AccountsTableAnnotationComposer get lastAccountId {
+    final $$AccountsTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.lastAccountId,
+        referencedTable: $db.accounts,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$AccountsTableAnnotationComposer(
+              $db: $db,
+              $table: $db.accounts,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$UserLastScopesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $UserLastScopesTable,
+    UserLastScope,
+    $$UserLastScopesTableFilterComposer,
+    $$UserLastScopesTableOrderingComposer,
+    $$UserLastScopesTableAnnotationComposer,
+    $$UserLastScopesTableCreateCompanionBuilder,
+    $$UserLastScopesTableUpdateCompanionBuilder,
+    (UserLastScope, $$UserLastScopesTableReferences),
+    UserLastScope,
+    PrefetchHooks Function({bool userId, bool lastAccountId})> {
+  $$UserLastScopesTableTableManager(
+      _$AppDatabase db, $UserLastScopesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$UserLastScopesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$UserLastScopesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$UserLastScopesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<int> userId = const Value.absent(),
+            Value<String> lastAccountId = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+          }) =>
+              UserLastScopesCompanion(
+            userId: userId,
+            lastAccountId: lastAccountId,
+            updatedAt: updatedAt,
+          ),
+          createCompanionCallback: ({
+            Value<int> userId = const Value.absent(),
+            required String lastAccountId,
+            Value<DateTime> updatedAt = const Value.absent(),
+          }) =>
+              UserLastScopesCompanion.insert(
+            userId: userId,
+            lastAccountId: lastAccountId,
+            updatedAt: updatedAt,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (
+                    e.readTable(table),
+                    $$UserLastScopesTableReferences(db, table, e)
+                  ))
+              .toList(),
+          prefetchHooksCallback: ({userId = false, lastAccountId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins: <
+                  T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic>>(state) {
+                if (userId) {
+                  state = state.withJoin(
+                    currentTable: table,
+                    currentColumn: table.userId,
+                    referencedTable:
+                        $$UserLastScopesTableReferences._userIdTable(db),
+                    referencedColumn:
+                        $$UserLastScopesTableReferences._userIdTable(db).id,
+                  ) as T;
+                }
+                if (lastAccountId) {
+                  state = state.withJoin(
+                    currentTable: table,
+                    currentColumn: table.lastAccountId,
+                    referencedTable:
+                        $$UserLastScopesTableReferences._lastAccountIdTable(db),
+                    referencedColumn: $$UserLastScopesTableReferences
+                        ._lastAccountIdTable(db)
+                        .id,
+                  ) as T;
+                }
+
+                return state;
+              },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ));
+}
+
+typedef $$UserLastScopesTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $UserLastScopesTable,
+    UserLastScope,
+    $$UserLastScopesTableFilterComposer,
+    $$UserLastScopesTableOrderingComposer,
+    $$UserLastScopesTableAnnotationComposer,
+    $$UserLastScopesTableCreateCompanionBuilder,
+    $$UserLastScopesTableUpdateCompanionBuilder,
+    (UserLastScope, $$UserLastScopesTableReferences),
+    UserLastScope,
+    PrefetchHooks Function({bool userId, bool lastAccountId})>;
 typedef $$PartsTableCreateCompanionBuilder = PartsCompanion Function({
   Value<int> id,
   Value<String?> accountId,
@@ -7074,6 +7783,8 @@ class $AppDatabaseManager {
       $$GroupInvitesTableTableManager(_db, _db.groupInvites);
   $$AppContextsTableTableManager get appContexts =>
       $$AppContextsTableTableManager(_db, _db.appContexts);
+  $$UserLastScopesTableTableManager get userLastScopes =>
+      $$UserLastScopesTableTableManager(_db, _db.userLastScopes);
   $$PartsTableTableManager get parts =>
       $$PartsTableTableManager(_db, _db.parts);
   $$PartsImagesTableTableManager get partsImages =>
