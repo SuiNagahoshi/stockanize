@@ -91,6 +91,12 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     if (message.contains('対象グループに参加していません')) {
       return '対象グループに参加していないため、この操作は実行できません。';
     }
+    if (message.contains('現在のアカウント外の招待です')) {
+      return '現在のアカウント外の招待は操作できません。対象アカウントへ切り替えてから実行してください。';
+    }
+    if (message.contains('グループを選択するにはログインが必要です')) {
+      return 'グループ情報の更新中です。少し待ってからもう一度お試しください。';
+    }
     return message;
   }
 
@@ -822,6 +828,11 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                         Text(
                           '招待（受信 ${received.length} / 送信 ${sent.length}）',
                           style: const TextStyle(fontSize: 18),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          '※現在のアクティブアカウント内の招待のみ表示しています',
+                          style: TextStyle(fontSize: 12, color: Colors.black54),
                         ),
                         if (received.isNotEmpty) ...[
                           const SizedBox(height: 8),

@@ -448,8 +448,10 @@ extension AccountControlDao on AppDatabase {
   Stream<List<GroupMemberView>> watchGroupMembers(int groupId) {
     final query = select(groupMembers).join([
       innerJoin(users, users.id.equalsExp(groupMembers.userId)),
+      innerJoin(userGroups, userGroups.id.equalsExp(groupMembers.groupId)),
     ])
-      ..where(groupMembers.groupId.equals(groupId));
+      ..where(groupMembers.groupId.equals(groupId))
+      ..where(userGroups.accountId.equals(currentAccountId));
 
     return query.watch().map((rows) {
       return rows.map((row) {
@@ -492,67 +494,70 @@ extension AccountControlDao on AppDatabase {
   }
 
   Stream<List<GroupInviteView>> watchPendingInvitesForCurrentUser() async* {
-    final user = await getCurrentUser();
-    if (user == null) {
-      yield const <GroupInviteView>[];
-      return;
-    }
+    yield* watchAppContext().asyncExpand((_) {
+      final userId = currentUserId;
+      if (userId == null) {
+        return Stream.value(const <GroupInviteView>[]);
+      }
 
-    final username = user.username;
-    final query = select(groupInvites).join([
-      innerJoin(userGroups, userGroups.id.equalsExp(groupInvites.groupId)),
-    ])
-      ..where(groupInvites.inviteeUsername.equals(username))
-      ..where(userGroups.accountId.equals(currentAccountId))
-      ..where(groupInvites.status.equals('pending'));
+      final query = select(groupInvites).join([
+        innerJoin(userGroups, userGroups.id.equalsExp(groupInvites.groupId)),
+        innerJoin(
+            users, users.username.equalsExp(groupInvites.inviteeUsername)),
+      ])
+        ..where(users.id.equals(userId))
+        ..where(userGroups.accountId.equals(currentAccountId))
+        ..where(groupInvites.status.equals('pending'));
 
-    yield* query.watch().map((rows) {
-      return rows.map((row) {
-        final invite = row.readTable(groupInvites);
-        final group = row.readTable(userGroups);
-        return GroupInviteView(
-          id: invite.id,
-          groupId: invite.groupId,
-          groupName: group.name,
-          inviteeUsername: invite.inviteeUsername,
-          token: invite.token,
-          status: invite.status,
-          expiresAt: invite.expiresAt,
-        );
-      }).toList()
-        ..sort((a, b) => b.id.compareTo(a.id));
+      return query.watch().map((rows) {
+        return rows.map((row) {
+          final invite = row.readTable(groupInvites);
+          final group = row.readTable(userGroups);
+          return GroupInviteView(
+            id: invite.id,
+            groupId: invite.groupId,
+            groupName: group.name,
+            inviteeUsername: invite.inviteeUsername,
+            token: invite.token,
+            status: invite.status,
+            expiresAt: invite.expiresAt,
+          );
+        }).toList()
+          ..sort((a, b) => b.id.compareTo(a.id));
+      });
     });
   }
 
   Stream<List<GroupInviteView>> watchSentInvitesForCurrentUser() async* {
-    final userId = currentUserId;
-    if (userId == null) {
-      yield const <GroupInviteView>[];
-      return;
-    }
+    yield* watchAppContext().asyncExpand((_) {
+      final userId = currentUserId;
+      if (userId == null) {
+        return Stream.value(const <GroupInviteView>[]);
+      }
 
-    final query = select(groupInvites).join([
-      innerJoin(userGroups, userGroups.id.equalsExp(groupInvites.groupId)),
-    ])
-      ..where(groupInvites.invitedByUserId.equals(userId))
-      ..where(userGroups.accountId.equals(currentAccountId))
-      ..where(groupInvites.status.equals('pending'));
+      final query = select(groupInvites).join([
+        innerJoin(userGroups, userGroups.id.equalsExp(groupInvites.groupId)),
+      ])
+        ..where(groupInvites.invitedByUserId.equals(userId))
+        ..where(userGroups.accountId.equals(currentAccountId))
+        ..where(groupInvites.status.equals('pending'));
 
-    yield* query.watch().map((rows) {
-      return rows.map((row) {
-        final invite = row.readTable(groupInvites);
-        final group = row.readTable(userGroups);
-        return GroupInviteView(
-          id: invite.id,
-          groupId: invite.groupId,
-          groupName: group.name,
-          inviteeUsername: invite.inviteeUsername,
-          token: invite.token,
-          status: invite.status,
-          expiresAt: invite.expiresAt,
-        );
-      }).toList()
-        ..sort((a, b) => b.id.compareTo(a.id));
+      return query.watch().map((rows) {
+        return rows.map((row) {
+          final invite = row.readTable(groupInvites);
+          final group = row.readTable(userGroups);
+          return GroupInviteView(
+            id: invite.id,
+            groupId: invite.groupId,
+            groupName: group.name,
+            inviteeUsername: invite.inviteeUsername,
+            token: invite.token,
+            status: invite.status,
+            expiresAt: invite.expiresAt,
+          );
+        }).toList()
+          ..sort((a, b) => b.id.compareTo(a.id));
+      });
     });
   }
 
@@ -583,6 +588,9 @@ extension AccountControlDao on AppDatabase {
         .getSingleOrNull();
     if (group == null) {
       throw StateError('招待先グループが存在しません');
+    }
+    if (group.accountId != currentAccountId) {
+      throw StateError('現在のアカウント外の招待です');
     }
 
     await transaction(() async {
@@ -624,6 +632,16 @@ extension AccountControlDao on AppDatabase {
 
     if (invite.inviteeUsername != user.username) {
       throw StateError('この招待は現在のユーザ向けではありません');
+    }
+
+    final group = await (select(userGroups)
+          ..where((g) => g.id.equals(invite.groupId)))
+        .getSingleOrNull();
+    if (group == null) {
+      throw StateError('招待先グループが存在しません');
+    }
+    if (group.accountId != currentAccountId) {
+      throw StateError('現在のアカウント外の招待です');
     }
 
     await (update(groupInvites)..where((i) => i.id.equals(inviteId))).write(
